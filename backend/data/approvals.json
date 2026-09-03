@@ -1,0 +1,74 @@
+[
+    {
+        "approval_id": "923eeacc-a8f0-4357-8212-9133fa8208ac",
+        "request_id": "fde0ba2e-29bd-40f4-86fa-69f5dedc1fb8",
+        "service": "ABC Exports",
+        "amount": 50000.0,
+        "currency": "INR",
+        "decision": "APPROVED",
+        "approval_status": "APPROVED",
+        "razorpay_order_id": "order_TXb6bU0iHjRj1d",
+        "approved_at": "2026-09-03T14:30:08.104261+00:00",
+        "payment_action": "HUMAN_APPROVED_CHECKOUT_REQUIRED"
+    },
+    {
+        "approval_id": "c5e99d1f-89af-44e9-8ea4-be02b7c95729",
+        "request_id": "d8fe22d9-c178-4c0e-9f0b-0f9ef0d93659",
+        "service": "AURA Exporter Service",
+        "amount": 50000.0,
+        "currency": "INR",
+        "decision": "APPROVED",
+        "approval_status": "APPROVED",
+        "razorpay_order_id": "order_TXcGHBbBxjUaSW",
+        "approved_at": "2026-09-03T15:37:59.101596+00:00",
+        "payment_action": "HUMAN_APPROVED_CHECKOUT_REQUIRED"
+    },
+    {
+        "approval_id": "a33a9b3b-19ab-49d7-a6c8-157533ee4d12",
+        "request_id": "930b110a-f46f-4947-897a-b5731b3ba631",
+        "service": "AURA Exporter Service",
+        "amount": 50000.0,
+        "currency": "INR",
+        "decision": "APPROVED",
+        "approval_status": "APPROVED",
+        "razorpay_order_id": "order_TXcZxw3P2Z6bf3",
+        "approved_at": "2026-09-03T15:56:37.463354+00:00",
+        "payment_action": "HUMAN_APPROVED_CHECKOUT_REQUIRED"
+    },
+    {
+        "approval_id": "626c9477-c52f-4adb-9716-28230a9cc129",
+        "request_id": "a3a9f771-0836-47d1-8d09-25a3a84f7250",
+        "service": "AURA Exporter Service",
+        "amount": 5000.0,
+        "currency": "INR",
+        "decision": "APPROVED",
+        "approval_status": "APPROVED",
+        "razorpay_order_id": "order_TXdf7TRuCzo0cZ",
+        "approved_at": "2026-09-03T17:00:11.782043+00:00",
+        "payment_action": "HUMAN_APPROVED_CHECKOUT_REQUIRED"
+    },
+    {
+        "approval_id": "a49df4eb-9777-444a-b5bf-35f8b6b16be5",
+        "request_id": "a89a60f3-40e3-4171-b080-454bbf41e11e",
+        "service": "AURA Exporter Service",
+        "amount": 5000.0,
+        "currency": "INR",
+        "decision": "APPROVED",
+        "approval_status": "APPROVED",
+        "razorpay_order_id": "order_TXdlCwiK0iObEy",
+        "approved_at": "2026-09-03T17:05:57.605148+00:00",
+        "payment_action": "HUMAN_APPROVED_CHECKOUT_REQUIRED"
+    },
+    {
+        "approval_id": "6668ae4b-ffd0-44e4-8916-8562389a2303",
+        "request_id": "6d391515-57da-4d34-a5ff-860b78d14cc4",
+        "service": "AURA Exporter Service",
+        "amount": 5000.0,
+        "currency": "INR",
+        "decision": "APPROVED",
+        "approval_status": "APPROVED",
+        "razorpay_order_id": "order_TXdzLQ0OBLUZ8l",
+        "approved_at": "2026-09-03T17:19:20.562092+00:00",
+        "payment_action": "HUMAN_APPROVED_CHECKOUT_REQUIRED"
+    }
+]

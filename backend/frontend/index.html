@@ -1,0 +1,4590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>AURA — Autonomous Unified Razorpay Agent</title>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<style>
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --bg: #f5f6f8;
+    --white: #ffffff;
+    --black: #111315;
+    --text: #17191c;
+    --muted: #737982;
+    --border: #e3e6ea;
+
+    --green: #16834d;
+    --green-bg: #eaf8f0;
+
+    --yellow: #a66b00;
+    --yellow-bg: #fff5dc;
+
+    --red: #c62828;
+    --red-bg: #ffeded;
+
+    --blue: #2563eb;
+    --blue-bg: #edf3ff;
+
+    --shadow: 0 8px 28px rgba(0,0,0,.05);
+}
+
+body {
+    font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+/* =========================================================
+   APP
+========================================================= */
+
+.app {
+    min-height: 100vh;
+}
+
+/* =========================================================
+   SIDEBAR
+========================================================= */
+
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+
+    width: 235px;
+
+    background: var(--black);
+    color: white;
+
+    padding: 22px 15px;
+
+    z-index: 20;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 3px 9px 28px;
+}
+
+.logo-mark {
+    width: 38px;
+    height: 38px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 10px;
+
+    background: white;
+    color: var(--black);
+
+    font-weight: 800;
+    font-size: 18px;
+}
+
+.logo-name {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -.5px;
+}
+
+.logo-sub {
+    margin-top: 2px;
+
+    font-size: 9px;
+    color: #7f858c;
+
+    letter-spacing: .2px;
+}
+
+.nav-title {
+    padding: 10px 10px 7px;
+
+    color: #6f757c;
+
+    font-size: 9px;
+    font-weight: 700;
+
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.nav-btn {
+    width: 100%;
+
+    border: 0;
+    background: transparent;
+
+    color: #aeb3ba;
+
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 10px 11px;
+
+    margin-bottom: 3px;
+
+    border-radius: 8px;
+
+    text-align: left;
+
+    font-size: 12px;
+}
+
+.nav-btn:hover {
+    background: #1b1e21;
+    color: white;
+}
+
+.nav-btn.active {
+    background: white;
+    color: var(--black);
+}
+
+.nav-icon {
+    width: 19px;
+    text-align: center;
+}
+
+.system-status {
+    position: absolute;
+
+    left: 15px;
+    right: 15px;
+    bottom: 20px;
+
+    border: 1px solid #292d31;
+    border-radius: 9px;
+
+    padding: 10px;
+
+    font-size: 10px;
+    color: #92979d;
+}
+
+.status-dot {
+    display: inline-block;
+
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: #20c878;
+
+    margin-right: 5px;
+}
+
+/* =========================================================
+   MAIN
+========================================================= */
+
+.main {
+    margin-left: 235px;
+
+    min-height: 100vh;
+
+    padding: 28px 32px;
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    margin-bottom: 24px;
+}
+
+.page-title {
+    font-size: 24px;
+    font-weight: 780;
+    letter-spacing: -.6px;
+}
+
+.page-subtitle {
+    margin-top: 4px;
+
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.connection {
+    display: flex;
+    align-items: center;
+
+    gap: 6px;
+
+    padding: 7px 11px;
+
+    border: 1px solid var(--border);
+    border-radius: 20px;
+
+    background: white;
+
+    color: #60666d;
+
+    font-size: 10px;
+}
+
+/* =========================================================
+   PAGES
+========================================================= */
+
+.page {
+    display: none;
+}
+
+.page.active {
+    display: block;
+}
+
+/* =========================================================
+   CARDS
+========================================================= */
+
+.card {
+    background: var(--white);
+
+    border: 1px solid var(--border);
+    border-radius: 12px;
+
+    box-shadow: var(--shadow);
+}
+
+.section-card {
+    padding: 21px;
+}
+
+.section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    margin-bottom: 17px;
+}
+
+.section-title {
+    font-size: 14px;
+    font-weight: 750;
+}
+
+.section-description {
+    margin-top: 3px;
+
+    color: var(--muted);
+
+    font-size: 10px;
+}
+
+/* =========================================================
+   STATS
+========================================================= */
+
+.stats {
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, 1fr);
+
+    gap: 14px;
+}
+
+.stat-card {
+    padding: 17px;
+}
+
+.stat-label {
+    color: var(--muted);
+
+    font-size: 10px;
+
+    margin-bottom: 8px;
+}
+
+.stat-value {
+    font-size: 23px;
+    font-weight: 800;
+}
+
+.stat-foot {
+    margin-top: 4px;
+
+    color: var(--muted);
+
+    font-size: 9px;
+}
+
+/* =========================================================
+   BRAIN
+========================================================= */
+
+.brain-card {
+    margin-top: 15px;
+}
+
+.brain-box {
+    background: var(--black);
+
+    border-radius: 11px;
+
+    padding: 19px;
+
+    color: white;
+}
+
+.brain-label {
+    color: #858b92;
+
+    font-size: 9px;
+
+    text-transform: uppercase;
+    letter-spacing: 1px;
+
+    margin-bottom: 6px;
+}
+
+.brain-title {
+    font-size: 20px;
+    font-weight: 780;
+}
+
+.brain-description {
+    margin-top: 4px;
+
+    color: #a8adb3;
+
+    font-size: 10px;
+}
+
+.brain-input {
+    margin-top: 15px;
+}
+
+.brain-input textarea {
+    min-height: 105px;
+
+    background: #191c1f;
+
+    border: 1px solid #30343a;
+
+    color: white;
+}
+
+.brain-input textarea::placeholder {
+    color: #70767d;
+}
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+.actions {
+    display: flex;
+    gap: 8px;
+
+    margin-top: 14px;
+
+    flex-wrap: wrap;
+}
+
+.btn {
+    border: 0;
+
+    border-radius: 7px;
+
+    padding: 10px 15px;
+
+    font-size: 10px;
+    font-weight: 750;
+}
+
+.btn-dark {
+    background: var(--black);
+    color: white;
+}
+
+.btn-green {
+    background: var(--green);
+    color: white;
+}
+
+.btn-light {
+    background: white;
+
+    border: 1px solid var(--border);
+
+    color: var(--text);
+}
+
+.btn-red {
+    background: var(--red);
+    color: white;
+}
+
+.btn:hover {
+    filter: brightness(.94);
+}
+
+.btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+/* =========================================================
+   DECISION
+========================================================= */
+
+.decision-panel {
+    margin-top: 15px;
+
+    padding: 17px;
+
+    background: white;
+
+    border: 1px solid var(--border);
+
+    border-radius: 11px;
+}
+
+.decision-row {
+    display: flex;
+
+    justify-content: space-between;
+    align-items: center;
+
+    gap: 15px;
+}
+
+.decision-title {
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.decision-description {
+    margin-top: 4px;
+
+    color: var(--muted);
+
+    font-size: 10px;
+}
+
+/* =========================================================
+   BADGES
+========================================================= */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+
+    padding: 5px 9px;
+
+    border-radius: 20px;
+
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.badge-low {
+    color: var(--green);
+    background: var(--green-bg);
+}
+
+.badge-medium {
+    color: var(--yellow);
+    background: var(--yellow-bg);
+}
+
+.badge-high {
+    color: var(--red);
+    background: var(--red-bg);
+}
+
+.badge-blue {
+    color: var(--blue);
+    background: var(--blue-bg);
+}
+
+.badge-neutral {
+    color: #5e646b;
+    background: #eef0f2;
+}
+
+/* =========================================================
+   AGENTS
+========================================================= */
+
+.agent-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, 1fr);
+
+    gap: 9px;
+
+    margin-top: 12px;
+}
+
+.agent-card {
+    background: white;
+
+    border: 1px solid var(--border);
+
+    border-radius: 9px;
+
+    padding: 12px;
+}
+
+.agent-name {
+    font-size: 10px;
+    font-weight: 750;
+}
+
+.agent-status {
+    margin-top: 6px;
+
+    color: var(--muted);
+
+    font-size: 9px;
+}
+
+.activity-panel {
+    margin-top: 12px;
+    padding: 14px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.activity-title {
+    font-size: 10px;
+    font-weight: 750;
+    margin-bottom: 10px;
+}
+
+.activity-item {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f1f3;
+}
+
+.activity-item:last-child {
+    border-bottom: 0;
+}
+
+.activity-dot {
+    width: 8px;
+    height: 8px;
+    min-width: 8px;
+    margin-top: 4px;
+    border-radius: 50%;
+    background: var(--green);
+}
+
+.activity-agent {
+    font-size: 10px;
+    font-weight: 750;
+}
+
+.activity-action {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 9px;
+}
+
+/* =========================================================
+   RESULT GRID
+========================================================= */
+
+.result-grid {
+    display: grid;
+
+    grid-template-columns:
+        1fr 1fr;
+
+    gap: 11px;
+
+    margin-top: 12px;
+}
+
+.result-card {
+    padding: 14px;
+
+    background: white;
+
+    border: 1px solid var(--border);
+
+    border-radius: 10px;
+}
+
+.result-card-title {
+    font-size: 10px;
+    font-weight: 750;
+
+    margin-bottom: 8px;
+}
+
+.result-row {
+    display: flex;
+
+    justify-content: space-between;
+
+    gap: 12px;
+
+    padding: 7px 0;
+
+    border-bottom: 1px solid #f0f1f3;
+
+    font-size: 10px;
+}
+
+.result-row:last-child {
+    border-bottom: 0;
+}
+
+.result-key {
+    color: var(--muted);
+}
+
+.result-value {
+    text-align: right;
+    font-weight: 650;
+}
+
+/* =========================================================
+   APPROVAL
+========================================================= */
+
+.approval-panel {
+    margin-top: 13px;
+
+    padding: 17px;
+
+    border: 1px solid #dce5ff;
+
+    border-radius: 11px;
+
+    background: #f7f9ff;
+}
+
+.approval-top {
+    display: flex;
+
+    justify-content: space-between;
+    align-items: center;
+
+    gap: 15px;
+}
+
+.approval-title {
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.approval-description {
+    margin-top: 4px;
+
+    color: #69717b;
+
+    font-size: 10px;
+}
+
+.approval-amount {
+    font-size: 19px;
+    font-weight: 850;
+
+    white-space: nowrap;
+}
+
+.approve-btn {
+    width: 100%;
+
+    margin-top: 13px;
+
+    padding: 12px;
+
+    border: 0;
+    border-radius: 8px;
+
+    background: var(--black);
+
+    color: white;
+
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.approve-btn:hover {
+    background: #292d31;
+}
+
+.approve-btn:disabled {
+    opacity: .5;
+}
+
+/* =========================================================
+   FORMS
+========================================================= */
+
+.form-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, 1fr);
+
+    gap: 14px;
+}
+
+.field {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 5px;
+}
+
+.field.full {
+    grid-column: 1 / -1;
+}
+
+label {
+    color: #50565e;
+
+    font-size: 10px;
+    font-weight: 700;
+}
+
+input,
+textarea,
+select {
+    width: 100%;
+
+    border: 1px solid var(--border);
+
+    border-radius: 7px;
+
+    padding: 9px 10px;
+
+    background: white;
+
+    color: var(--text);
+
+    outline: none;
+
+    font-size: 11px;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    border-color: #8c9299;
+}
+
+textarea {
+    resize: vertical;
+
+    min-height: 100px;
+}
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+
+    border-collapse: collapse;
+}
+
+th {
+    padding: 10px;
+
+    text-align: left;
+
+    color: var(--muted);
+
+    border-bottom: 1px solid var(--border);
+
+    font-size: 9px;
+
+    text-transform: uppercase;
+}
+
+td {
+    padding: 11px 10px;
+
+    border-bottom: 1px solid #f0f1f3;
+
+    font-size: 10px;
+}
+
+.empty {
+    padding: 30px;
+
+    text-align: center;
+
+    color: var(--muted);
+
+    font-size: 10px;
+}
+
+/* =========================================================
+   DETAILS
+========================================================= */
+
+details {
+    margin-top: 12px;
+
+    border: 1px solid var(--border);
+
+    border-radius: 8px;
+
+    background: #fafafa;
+}
+
+summary {
+    padding: 10px;
+
+    cursor: pointer;
+
+    font-size: 9px;
+    font-weight: 700;
+}
+
+pre {
+    padding: 11px;
+
+    border-top: 1px solid var(--border);
+
+    overflow: auto;
+
+    font-size: 9px;
+
+    line-height: 1.45;
+}
+
+/* =========================================================
+   TOAST
+========================================================= */
+
+.toast {
+    position: fixed;
+
+    right: 22px;
+    bottom: 22px;
+
+    z-index: 9999;
+
+    max-width: 330px;
+
+    padding: 12px 15px;
+
+    border-radius: 9px;
+
+    background: var(--black);
+
+    color: white;
+
+    font-size: 10px;
+
+    box-shadow: 0 10px 30px rgba(0,0,0,.2);
+
+    opacity: 0;
+
+    transform: translateY(15px);
+
+    pointer-events: none;
+
+    transition: .2s;
+}
+
+.toast.show {
+    opacity: 1;
+
+    transform: translateY(0);
+}
+
+.toast.success {
+    background: #116c42;
+}
+
+.toast.error {
+    background: #a51f1f;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media(max-width:1000px) {
+
+    .stats {
+        grid-template-columns:
+            repeat(2, 1fr);
+    }
+
+    .agent-grid {
+        grid-template-columns:
+            repeat(2, 1fr);
+    }
+}
+
+@media(max-width:750px) {
+
+    .sidebar {
+        width: 65px;
+
+        padding: 15px 8px;
+    }
+
+    .logo {
+        justify-content: center;
+    }
+
+    .logo-name,
+    .logo-sub,
+    .nav-title,
+    .nav-btn span:not(.nav-icon),
+    .system-status {
+        display: none;
+    }
+
+    .nav-btn {
+        justify-content: center;
+    }
+
+    .main {
+        margin-left: 65px;
+
+        width: calc(100% - 65px);
+
+        padding: 18px;
+    }
+
+    .form-grid,
+    .result-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media(max-width:500px) {
+
+    .stats,
+    .agent-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .main {
+        padding: 12px;
+    }
+}
+</style>
+</head>
+
+
+<body>
+
+<div class="app">
+
+<!-- ======================================================
+     SIDEBAR
+====================================================== -->
+
+<aside class="sidebar">
+
+    <div class="logo">
+
+        <div class="logo-mark">
+            A
+        </div>
+
+        <div>
+            <div class="logo-name">
+                AURA
+            </div>
+
+            <div class="logo-sub">
+               
+            </div>
+        </div>
+
+    </div>
+
+
+    <div class="nav-title">
+        Workspace
+    </div>
+
+
+    <button
+        class="nav-btn active"
+        data-page="overview"
+    >
+        <span class="nav-icon">⌂</span>
+        <span>Overview</span>
+    </button>
+
+
+    <button
+        class="nav-btn"
+        data-page="compliance"
+    >
+        <span class="nav-icon">✓</span>
+        <span>Compliance</span>
+    </button>
+
+
+    <button
+        class="nav-btn"
+        data-page="vendors"
+    >
+        <span class="nav-icon">◫</span>
+        <span>Vendors</span>
+    </button>
+
+
+    <button
+        class="nav-btn"
+        data-page="payments"
+    >
+        <span class="nav-icon">₹</span>
+        <span>Payments</span>
+    </button>
+
+
+    <div class="system-status">
+
+        <span class="status-dot"></span>
+
+        AURA API connected
+
+    </div>
+
+</aside>
+
+
+<!-- ======================================================
+     MAIN
+====================================================== -->
+
+<main class="main">
+
+    <div class="topbar">
+
+        <div>
+
+            <div
+                class="page-title"
+                id="pageTitle"
+            >
+                AURA Overview
+            </div>
+
+            <div
+                class="page-subtitle"
+                id="pageSubtitle"
+            >
+                Autonomous workflow orchestration for exporters
+            </div>
+
+        </div>
+
+
+        <div class="connection">
+
+            <span class="status-dot"></span>
+
+            Backend Online
+
+        </div>
+
+    </div>
+
+
+<!-- ======================================================
+     OVERVIEW
+====================================================== -->
+
+<section
+    class="page active"
+    id="page-overview"
+>
+
+
+    <!-- STATS -->
+
+    <div class="stats">
+
+
+        <div class="card stat-card">
+
+            <div class="stat-label">
+                Agent System
+            </div>
+
+            <div class="stat-value">
+                AURA
+            </div>
+
+            <div class="stat-foot">
+                Autonomous Unified Razorpay Agent
+            </div>
+
+        </div>
+
+
+        <div class="card stat-card">
+
+            <div class="stat-label">
+                Risk
+            </div>
+
+            <div
+                class="stat-value"
+                id="overviewRisk"
+            >
+                —
+            </div>
+
+            <div class="stat-foot">
+                Current workflow
+            </div>
+
+        </div>
+
+
+        <div class="card stat-card">
+
+            <div class="stat-label">
+                Decision
+            </div>
+
+            <div
+                class="stat-value"
+                id="overviewDecision"
+            >
+                —
+            </div>
+
+            <div class="stat-foot">
+                AURA decision
+            </div>
+
+        </div>
+
+
+        <div class="card stat-card">
+
+            <div class="stat-label">
+                Payments
+            </div>
+
+            <div
+                class="stat-value"
+                id="overviewPayments"
+            >
+                0
+            </div>
+
+            <div class="stat-foot">
+                Recorded transactions
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- BRAIN -->
+
+    <div class="section-card card brain-card">
+
+        <div class="section-head">
+
+            <div>
+
+                <div class="section-title">
+                    AURA Brain
+                </div>
+
+                <div class="section-description">
+                    Give AURA an exporter request.
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="brain-box">
+
+            <div class="brain-label">
+                Natural Language Request
+            </div>
+
+            <div class="brain-title">
+                What should AURA handle?
+            </div>
+
+            <div class="brain-description">
+                AURA selects agents, evaluates risk and determines the next action.
+            </div>
+
+
+            <div class="brain-input">
+
+                <textarea
+                    id="brainRequest"
+                    placeholder="Example: Process vendor payment of ₹50,000 to ABC Components. Vendor is a micro enterprise and there is no written payment agreement."
+                ></textarea>
+
+            </div>
+
+
+            <div class="actions">
+
+                <button
+                    class="btn btn-green"
+                    id="runBrainBtn"
+                >
+                    RUN AURA
+                </button>
+
+
+                <button
+                    class="btn btn-light"
+                    id="sampleBtn"
+                >
+                    LOAD SAMPLE
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <!-- RESULT PANEL -->
+
+        <div id="brainResult"></div>
+
+    </div>
+
+</section>
+
+
+<!-- ======================================================
+     COMPLIANCE
+====================================================== -->
+
+<section
+    class="page"
+    id="page-compliance"
+>
+
+    <div class="section-card card">
+
+        <div class="section-head">
+
+            <div>
+
+                <div class="section-title">
+                    Export Compliance Audit
+                </div>
+
+                <div class="section-description">
+                    Check export documentation and realization status.
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <form id="complianceForm">
+
+            <div class="form-grid">
+
+
+                <div class="field">
+
+                    <label>
+                        Shipping Bill
+                    </label>
+
+                    <input
+                        id="shipping_bill"
+                        placeholder="SB123456"
+                    >
+
+                </div>
+
+
+                <div class="field">
+
+                    <label>
+                        Export Invoice
+                    </label>
+
+                    <input
+                        id="invoice"
+                        placeholder="INV-2026-001"
+                    >
+
+                </div>
+
+
+                <div class="field">
+
+                    <label>
+                        GST LUT
+                    </label>
+
+                    <select id="gst_lut">
+
+                        <option value="true">
+                            Available
+                        </option>
+
+                        <option value="false">
+                            Missing
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="field">
+
+                    <label>
+                        EDPMS Realized
+                    </label>
+
+                    <select id="edpms_realized">
+
+                        <option value="true">
+                            Realized
+                        </option>
+
+                        <option value="false">
+                            Pending
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="field">
+
+                    <label>
+                        e-FIRC / Realization Proof
+                    </label>
+
+                    <select id="e_firc">
+
+                        <option value="true">
+                            Available
+                        </option>
+
+                        <option value="false">
+                            Missing
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <div class="actions">
+
+                <button
+                    class="btn btn-dark"
+                    type="submit"
+                >
+                    RUN COMPLIANCE AUDIT
+                </button>
+
+            </div>
+
+        </form>
+
+
+        <div id="complianceResult"></div>
+
+    </div>
+
+</section>
+
+
+<!-- ======================================================
+     VENDORS
+====================================================== -->
+
+<section
+    class="page"
+    id="page-vendors"
+>
+
+    <div class="section-card card">
+
+        <div class="section-head">
+
+            <div>
+
+                <div class="section-title">
+                    MSME Vendor Payment
+                </div>
+
+                <div class="section-description">
+                    Evaluate Section 43B(h) payment timing risk.
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <form id="vendorForm">
+
+            <div class="form-grid">
+
+
+                <div class="field">
+
+                    <label>
+                        Vendor Name
+                    </label>
+
+                    <input
+                        id="vendor_name"
+                        placeholder="ABC Components"
+                    >
+
+                </div>
+
+
+                <div class="field">
+
+                    <label>
+                        Invoice Amount (₹)
+                    </label>
+
+                    <input
+                        id="invoice_amount"
+                        type="number"
+                        min="1"
+                        value="50000"
+                    >
+
+                </div>
+
+
+                <div class="field">
+
+                    <label>
+                        Invoice Date
+                    </label>
+
+                    <input
+                        id="invoice_date"
+                        type="date"
+                    >
+
+                </div>
+
+
+                <div class="field">
+
+                    <label>
+                        MSME Status
+                    </label>
+
+                    <select id="is_msme">
+
+                        <option value="true">
+                            Micro / Small Enterprise
+                        </option>
+
+                        <option value="false">
+                            Not MSME
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="field">
+
+                    <label>
+                        Written Agreement
+                    </label>
+
+                    <select id="has_written_agreement">
+
+                        <option value="false">
+                            No written agreement
+                        </option>
+
+                        <option value="true">
+                            Written agreement
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <div class="actions">
+
+                <button
+                    class="btn btn-dark"
+                    type="submit"
+                >
+                    CHECK PAYMENT RISK
+                </button>
+
+            </div>
+
+        </form>
+
+
+        <div id="vendorResult"></div>
+
+    </div>
+
+</section>
+
+
+<!-- ======================================================
+     PAYMENTS
+====================================================== -->
+
+<section
+    class="page"
+    id="page-payments"
+>
+
+
+    <!-- MANUAL PAYMENT -->
+
+    <div class="section-card card">
+
+        <div class="section-head">
+
+            <div>
+
+                <div class="section-title">
+                    Manual Payment Portal
+                </div>
+
+                <div class="section-description">
+                    Create a Razorpay Test Mode order and pay manually.
+                </div>
+
+            </div>
+
+            <span class="badge badge-blue">
+                TEST MODE
+            </span>
+
+        </div>
+
+
+        <form id="manualPaymentForm">
+
+            <div class="form-grid">
+
+
+                <div class="field">
+
+                    <label>
+                        Service
+                    </label>
+
+                    <input
+                        id="manual_service"
+                        value="AURA Exporter Service"
+                    >
+
+                </div>
+
+
+                <div class="field">
+
+                    <label>
+                        Amount (₹)
+                    </label>
+
+                    <input
+                        id="manual_amount"
+                        type="number"
+                        min="1"
+                        value="50000"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="field">
+
+                    <label>
+                        Currency
+                    </label>
+
+                    <input
+                        value="INR"
+                        disabled
+                    >
+
+                </div>
+
+            </div>
+
+
+            <div class="actions">
+
+                <button
+                    class="btn btn-green"
+                    id="manualPayBtn"
+                    type="submit"
+                >
+                    CREATE & PAY
+                </button>
+
+            </div>
+
+        </form>
+
+
+        <div id="manualPaymentResult"></div>
+
+    </div>
+
+
+    <!-- PAYMENT HISTORY -->
+
+    <div
+        class="section-card card"
+        style="margin-top:15px;"
+    >
+
+        <div class="section-head">
+
+            <div>
+
+                <div class="section-title">
+                    Payment History
+                </div>
+
+                <div class="section-description">
+                    Payments received through the AURA backend.
+                </div>
+
+            </div>
+
+
+            <button
+                class="btn btn-light"
+                id="refreshPaymentsBtn"
+            >
+                REFRESH
+            </button>
+
+        </div>
+
+
+        <div class="table-wrap">
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            Payment ID
+                        </th>
+
+                        <th>
+                            Order
+                        </th>
+
+                        <th>
+                            Amount
+                        </th>
+
+                        <th>
+                            Method
+                        </th>
+
+                        <th>
+                            Status
+                        </th>
+
+                        <th>
+                            Time
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody id="paymentsBody">
+
+                    <tr>
+
+                        <td
+                            colspan="6"
+                            class="empty"
+                        >
+                            Loading...
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</section>
+
+</main>
+
+</div>
+
+
+<div
+    class="toast"
+    id="toast"
+></div>
+
+
+<script>
+
+/* =========================================================
+   CONFIG
+========================================================= */
+
+const API =
+    "http://127.0.0.1:8000";
+
+const RAZORPAY_KEY =
+    "rzp_test_TWer7DrOL8uhZt";
+
+const DEFAULT_SERVICE =
+    "AURA Exporter Service";
+
+
+let auraRequestId = null;
+
+let currentApproval = null;
+
+let currentOrder = null;
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function $(id) {
+    return document.getElementById(id);
+}
+
+
+function escapeHtml(value) {
+
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+function money(value) {
+
+    const amount =
+        Number(value || 0);
+
+    return new Intl.NumberFormat(
+        "en-IN",
+        {
+            style: "currency",
+            currency: "INR",
+            maximumFractionDigits: 0
+        }
+    ).format(amount);
+}
+
+
+function localDate() {
+
+    const d = new Date();
+
+    return (
+        d.getFullYear() +
+        "-" +
+        String(d.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(d.getDate()).padStart(2, "0")
+    );
+}
+
+
+function requestId() {
+
+    if (
+        window.crypto &&
+        crypto.randomUUID
+    ) {
+        return crypto.randomUUID();
+    }
+
+    return (
+        "AURA-" +
+        Date.now() +
+        "-" +
+        Math.random()
+            .toString(36)
+            .substring(2)
+    );
+}
+
+
+function showToast(
+    message,
+    type = ""
+) {
+
+    const toast =
+        $("toast");
+
+    toast.textContent =
+        message;
+
+    toast.className =
+        "toast show " + type;
+
+    clearTimeout(
+        window.toastTimer
+    );
+
+    window.toastTimer =
+        setTimeout(
+            () => {
+                toast.className =
+                    "toast";
+            },
+            3500
+        );
+}
+
+
+async function api(
+    path,
+    options = {}
+) {
+
+    const response =
+        await fetch(
+            API + path,
+            {
+                ...options,
+
+                headers: {
+                    "Content-Type":
+                        "application/json",
+
+                    ...(options.headers || {})
+                }
+            }
+        );
+
+
+    let data = {};
+
+    try {
+
+        data =
+            await response.json();
+
+    } catch {
+
+        data = {};
+
+    }
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            data.detail ||
+            data.message ||
+            `Request failed (${response.status})`
+        );
+
+    }
+
+
+    return data;
+}
+
+
+function boolValue(id) {
+
+    return (
+        $(id).value === "true"
+    );
+}
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+const pageInfo = {
+
+    overview: [
+        "AURA Overview",
+        "Autonomous workflow orchestration for exporters"
+    ],
+
+    compliance: [
+        "Export Compliance",
+        "Audit export documentation and realization"
+    ],
+
+    vendors: [
+        "MSME Vendors",
+        "Evaluate payment timing and Section 43B(h) risk"
+    ],
+
+    payments: [
+        "Payments",
+        "Razorpay payment execution and history"
+    ]
+
+};
+
+
+document
+    .querySelectorAll(".nav-btn")
+    .forEach(button => {
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                const page =
+                    button.dataset.page;
+
+
+                document
+                    .querySelectorAll(".nav-btn")
+                    .forEach(
+                        x =>
+                            x.classList.remove(
+                                "active"
+                            )
+                    );
+
+
+                document
+                    .querySelectorAll(".page")
+                    .forEach(
+                        x =>
+                            x.classList.remove(
+                                "active"
+                            )
+                    );
+
+
+                button.classList.add(
+                    "active"
+                );
+
+
+                $("page-" + page)
+                    .classList.add(
+                        "active"
+                    );
+
+
+                $("pageTitle")
+                    .textContent =
+                    pageInfo[page][0];
+
+
+                $("pageSubtitle")
+                    .textContent =
+                    pageInfo[page][1];
+
+
+                if (
+                    page === "payments"
+                ) {
+                    loadPayments();
+                }
+
+            }
+        );
+
+    });
+
+
+/* =========================================================
+   SAMPLE
+========================================================= */
+
+$("sampleBtn")
+    .addEventListener(
+        "click",
+        () => {
+
+            $("brainRequest").value =
+                "Process vendor payment of ₹50,000 to ABC Components. Vendor is a micro enterprise and there is no written payment agreement.";
+
+            showToast(
+                "Sample request loaded."
+            );
+
+        }
+    );
+
+
+/* =========================================================
+   BRAIN
+========================================================= */
+
+$("runBrainBtn")
+    .addEventListener(
+        "click",
+        runBrain
+    );
+
+
+async function runBrain() {
+
+    const request =
+        $("brainRequest")
+            .value
+            .trim();
+
+
+    if (!request) {
+
+        showToast(
+            "Enter a request for AURA.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    const button =
+        $("runBrainBtn");
+
+
+    button.disabled = true;
+
+    button.textContent =
+        "AURA THINKING...";
+
+
+    $("brainResult")
+        .innerHTML = "";
+
+
+    try {
+
+        const data =
+            await api(
+                "/brain",
+                {
+                    method: "POST",
+
+                    body:
+                        JSON.stringify({
+                            request:
+                                request
+                        })
+                }
+            );
+
+
+        /*
+         * Keep ONE request ID for the
+         * approval button.
+         */
+
+        auraRequestId =
+            data.request_id ||
+            requestId();
+
+
+        renderBrainResult(
+            data
+        );
+
+
+        updateOverview(
+            data
+        );
+
+
+        showToast(
+            "AURA analysis completed.",
+            "success"
+        );
+
+    }
+    catch (error) {
+
+        $("brainResult")
+            .innerHTML = `
+
+                <div class="decision-panel">
+
+                    <span class="badge badge-high">
+                        ERROR
+                    </span>
+
+                    <div
+                        style="
+                            margin-top:9px;
+                            font-size:10px;
+                        "
+                    >
+                        ${escapeHtml(
+                            error.message
+                        )}
+                    </div>
+
+                </div>
+            `;
+
+
+        showToast(
+            error.message,
+            "error"
+        );
+
+    }
+    finally {
+
+        button.disabled = false;
+
+        button.textContent =
+            "RUN AURA";
+
+    }
+
+}
+
+
+/* =========================================================
+   IMPORTANT:
+   CURRENT BACKEND STRUCTURE
+========================================================= */
+
+function getDecision(data) {
+
+    /*
+     * Current AURA response:
+     *
+     * data.results.decision.decision
+     */
+
+    if (
+        data.results &&
+        data.results.decision &&
+        typeof data.results.decision ===
+            "object"
+    ) {
+
+        return (
+            data.results
+                .decision
+                .decision ||
+            ""
+        );
+
+    }
+
+
+    if (
+        typeof data.decision ===
+        "string"
+    ) {
+
+        return data.decision;
+
+    }
+
+
+    return "";
+}
+
+
+function getRisk(data) {
+
+    /*
+     * Current AURA response:
+     *
+     * data.results.aura_risk
+     */
+
+    if (
+        data.results &&
+        data.results.aura_risk
+    ) {
+
+        return data.results.aura_risk;
+
+    }
+
+
+    if (
+        data.aura_risk
+    ) {
+
+        return data.aura_risk;
+
+    }
+
+
+    return {};
+}
+
+
+function getAmount(data) {
+
+    if (
+        data.results &&
+        data.results.commerce &&
+        data.results.commerce.amount
+    ) {
+
+        return Number(
+            data.results
+                .commerce
+                .amount
+        );
+
+    }
+
+
+    if (
+        data.results &&
+        data.results.vendor &&
+        data.results.vendor.invoice_amount
+    ) {
+
+        return Number(
+            data.results
+                .vendor
+                .invoice_amount
+        );
+
+    }
+
+
+    if (
+        data.entities &&
+        data.entities.amount
+    ) {
+
+        return Number(
+            data.entities.amount
+        );
+
+    }
+
+
+    return 0;
+}
+
+
+function getService(data) {
+
+    if (
+        data.results &&
+        data.results.commerce &&
+        data.results.commerce.service
+    ) {
+
+        return data.results
+            .commerce
+            .service;
+
+    }
+
+
+    return DEFAULT_SERVICE;
+}
+
+
+/* =========================================================
+   RISK BADGE
+========================================================= */
+
+function riskBadge(level) {
+
+    level =
+        String(level || "")
+            .toUpperCase();
+
+
+    if (level === "LOW") {
+        return "badge-low";
+    }
+
+
+    if (level === "MEDIUM") {
+        return "badge-medium";
+    }
+
+
+    if (level === "HIGH") {
+        return "badge-high";
+    }
+
+
+    return "badge-neutral";
+}
+
+
+/* =========================================================
+   RENDER BRAIN RESULT
+========================================================= */
+
+function renderActivityTimeline(data) {
+
+    const activity =
+        Array.isArray(data.activity)
+            ? data.activity
+            : [];
+
+    if (!activity.length) {
+        return "";
+    }
+
+    const items = activity
+        .map(item => {
+
+            const agent =
+                item && typeof item === "object"
+                    ? (item.agent || item.name || "AURA")
+                    : "AURA";
+
+            const action =
+                item && typeof item === "object"
+                    ? (item.action || item.status || "Activity completed")
+                    : String(item);
+
+            const status =
+                item && typeof item === "object"
+                    ? String(item.status || "completed").toLowerCase()
+                    : "completed";
+
+            const isWaiting =
+                status.includes("wait") ||
+                status.includes("pending");
+
+            return `
+                <div class="activity-item">
+                    <span
+                        class="activity-dot"
+                        style="${isWaiting ? "background:var(--yellow);" : ""}"
+                    ></span>
+
+                    <div>
+                        <div class="activity-agent">
+                            ${escapeHtml(String(agent).toUpperCase())}
+                        </div>
+
+                        <div class="activity-action">
+                            ${escapeHtml(String(action))}
+                        </div>
+                    </div>
+                </div>
+            `;
+        })
+        .join("");
+
+    return `
+        <div class="activity-panel">
+            <div class="activity-title">
+                AURA Activity & Audit Trail
+            </div>
+
+            ${items}
+        </div>
+    `;
+}
+
+
+function renderBrainResult(data) {
+
+
+    const decision =
+        getDecision(data);
+
+
+    const risk =
+        getRisk(data);
+
+
+    const amount =
+        getAmount(data);
+
+
+    const service =
+        getService(data);
+
+
+    const vendor =
+        data.results &&
+        data.results.vendor
+            ? data.results.vendor
+            : null;
+
+
+    const compliance =
+        data.results &&
+        data.results.compliance
+            ? data.results.compliance
+            : null;
+
+
+    const requiredAgents =
+        Array.isArray(
+            data.required_agents
+        )
+            ? data.required_agents
+            : [];
+
+
+    const reason =
+        data.results &&
+        data.results.decision
+            ? data.results
+                .decision
+                .reason || ""
+            : "";
+
+
+    /*
+     * THIS is what controls
+     * the Approve Payment button.
+     */
+
+    const paymentReady =
+        decision ===
+        "PAYMENT_READY";
+
+
+    currentApproval = {
+
+        request_id:
+            auraRequestId,
+
+        amount:
+            amount,
+
+        currency:
+            "INR",
+
+        service:
+            service
+
+    };
+
+
+    let decisionClass =
+        "badge-neutral";
+
+
+    if (
+        decision ===
+        "PAYMENT_READY"
+    ) {
+
+        decisionClass =
+            "badge-low";
+
+    }
+    else if (
+        decision ===
+        "REVIEW_REQUIRED"
+    ) {
+
+        decisionClass =
+            "badge-medium";
+
+    }
+    else if (
+        decision ===
+        "BLOCK_PAYMENT"
+    ) {
+
+        decisionClass =
+            "badge-high";
+
+    }
+
+
+    $("brainResult")
+        .innerHTML = `
+
+
+        <!-- DECISION -->
+
+        <div class="decision-panel">
+
+            <div class="decision-row">
+
+                <div>
+
+                    <div class="decision-title">
+                        AURA Decision
+                    </div>
+
+                    <div class="decision-description">
+
+                        ${escapeHtml(
+                            reason ||
+                            "AURA evaluated the request and determined the next action."
+                        )}
+
+                    </div>
+
+                </div>
+
+
+                <span
+                    class="badge ${decisionClass}"
+                >
+                    ${escapeHtml(
+                        decision ||
+                        "UNKNOWN"
+                    )}
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <!-- AGENTS -->
+
+        <div class="agent-grid">
+
+
+            <div class="agent-card">
+
+                <div class="agent-name">
+                    Brain
+                </div>
+
+                <div class="agent-status">
+                    ✓ Completed
+                </div>
+
+            </div>
+
+
+            <div class="agent-card">
+
+                <div class="agent-name">
+                    Vendor
+                </div>
+
+                <div class="agent-status">
+
+                    ${
+                        vendor
+                            ? "✓ Completed"
+                            : "not required"
+                    }
+
+                </div>
+
+            </div>
+
+
+            <div class="agent-card">
+
+                <div class="agent-name">
+                    Compliance
+                </div>
+
+                <div class="agent-status">
+
+                    ${
+                        compliance
+                            ? "✓ Completed"
+                            : "not required"
+                    }
+
+                </div>
+
+            </div>
+
+
+            <div class="agent-card">
+
+                <div class="agent-name">
+                    Commerce
+                </div>
+
+                <div class="agent-status">
+
+                    ${
+                        paymentReady
+                            ? "waiting for approval"
+                            : "waiting"
+                    }
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        ${renderActivityTimeline(data)}
+
+
+        <!-- RISK + PAYMENT -->
+
+        <div class="result-grid">
+
+
+            <div class="result-card">
+
+                <div class="result-card-title">
+                    Risk Assessment
+                </div>
+
+
+                <div class="result-row">
+
+                    <span class="result-key">
+                        Risk Level
+                    </span>
+
+                    <span class="result-value">
+
+                        <span
+                            class="badge ${riskBadge(
+                                risk.risk_level
+                            )}"
+                        >
+                            ${escapeHtml(
+                                risk.risk_level ||
+                                "UNKNOWN"
+                            )}
+                        </span>
+
+                    </span>
+
+                </div>
+
+
+                <div class="result-row">
+
+                    <span class="result-key">
+                        Risk Score
+                    </span>
+
+                    <span class="result-value">
+                        ${escapeHtml(
+                            risk.risk_score ??
+                            "—"
+                        )}
+                    </span>
+
+                </div>
+
+
+                <div class="result-row">
+
+                    <span class="result-key">
+                        Risk Sources
+                    </span>
+
+                    <span class="result-value">
+
+                        ${escapeHtml(
+                            Array.isArray(
+                                risk.risk_sources
+                            )
+                                ? risk.risk_sources.join(
+                                    ", "
+                                )
+                                : "—"
+                        )}
+
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="result-card">
+
+                <div class="result-card-title">
+                    Payment Preparation
+                </div>
+
+
+                <div class="result-row">
+
+                    <span class="result-key">
+                        Service
+                    </span>
+
+                    <span class="result-value">
+                        ${escapeHtml(
+                            service
+                        )}
+                    </span>
+
+                </div>
+
+
+                <div class="result-row">
+
+                    <span class="result-key">
+                        Amount
+                    </span>
+
+                    <span class="result-value">
+                        ${
+                            amount
+                                ? money(amount)
+                                : "—"
+                        }
+                    </span>
+
+                </div>
+
+
+                <div class="result-row">
+
+                    <span class="result-key">
+                        Razorpay Order
+                    </span>
+
+                    <span class="result-value">
+
+                        ${
+                            data.results &&
+                            data.results.commerce &&
+                            data.results.commerce.razorpay_order_id
+                                ? escapeHtml(
+                                    data.results
+                                        .commerce
+                                        .razorpay_order_id
+                                )
+                                : "Not created"
+                        }
+
+                    </span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        ${
+            vendor
+                ? renderVendor(vendor)
+                : ""
+        }
+
+
+        ${
+            compliance
+                ? renderCompliance(
+                    compliance
+                )
+                : ""
+        }
+
+
+        ${
+            paymentReady
+                ? renderApproval(
+                    amount,
+                    service
+                )
+                : ""
+        }
+
+
+        <details>
+
+            <summary>
+                Technical details
+            </summary>
+
+            <pre>${escapeHtml(
+                JSON.stringify(
+                    data,
+                    null,
+                    2
+                )
+            )}</pre>
+
+        </details>
+
+    `;
+
+
+    const approve =
+        $("approvePaymentBtn");
+
+
+    if (approve) {
+
+        approve.addEventListener(
+            "click",
+            approvePayment
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   VENDOR
+========================================================= */
+
+function renderVendor(vendor) {
+
+    const risk =
+        vendor["43B_h_risk"] ||
+        vendor.risk ||
+        "UNKNOWN";
+
+
+    return `
+
+        <div
+            class="result-card"
+            style="margin-top:12px;"
+        >
+
+            <div class="result-card-title">
+                Vendor Agent
+            </div>
+
+
+            <div class="result-row">
+
+                <span class="result-key">
+                    Vendor Type
+                </span>
+
+                <span class="result-value">
+                    ${escapeHtml(
+                        vendor.vendor_type ||
+                        "—"
+                    )}
+                </span>
+
+            </div>
+
+
+            <div class="result-row">
+
+                <span class="result-key">
+                    Payment Limit
+                </span>
+
+                <span class="result-value">
+                    ${escapeHtml(
+                        vendor.payment_limit_days ??
+                        "—"
+                    )}
+                    days
+                </span>
+
+            </div>
+
+
+            <div class="result-row">
+
+                <span class="result-key">
+                    Due Date
+                </span>
+
+                <span class="result-value">
+                    ${escapeHtml(
+                        vendor.due_date ||
+                        "—"
+                    )}
+                </span>
+
+            </div>
+
+
+            <div class="result-row">
+
+                <span class="result-key">
+                    Days Remaining
+                </span>
+
+                <span class="result-value">
+                    ${escapeHtml(
+                        vendor.days_remaining ??
+                        "—"
+                    )}
+                </span>
+
+            </div>
+
+
+            <div class="result-row">
+
+                <span class="result-key">
+                    43B(h) Risk
+                </span>
+
+                <span class="result-value">
+
+                    <span
+                        class="badge ${riskBadge(
+                            risk
+                        )}"
+                    >
+                        ${escapeHtml(
+                            risk
+                        )}
+                    </span>
+
+                </span>
+
+            </div>
+
+
+            <div class="result-row">
+
+                <span class="result-key">
+                    Recommendation
+                </span>
+
+                <span class="result-value">
+                    ${escapeHtml(
+                        vendor.recommended_action ||
+                        "—"
+                    )}
+                </span>
+
+            </div>
+
+        </div>
+
+    `;
+}
+
+
+/* =========================================================
+   COMPLIANCE
+========================================================= */
+
+function renderCompliance(compliance) {
+
+    return `
+
+        <div
+            class="result-card"
+            style="margin-top:12px;"
+        >
+
+            <div class="result-card-title">
+                Compliance Agent
+            </div>
+
+
+            <div class="result-row">
+
+                <span class="result-key">
+                    Risk
+                </span>
+
+                <span class="result-value">
+
+                    <span
+                        class="badge ${riskBadge(
+                            compliance.risk
+                        )}"
+                    >
+                        ${escapeHtml(
+                            compliance.risk ||
+                            "UNKNOWN"
+                        )}
+                    </span>
+
+                </span>
+
+            </div>
+
+
+            <div class="result-row">
+
+                <span class="result-key">
+                    Missing Items
+                </span>
+
+                <span class="result-value">
+
+                    ${
+                        Array.isArray(
+                            compliance.missing_items
+                        )
+                            ? escapeHtml(
+                                compliance.missing_items
+                                    .join(", ") ||
+                                "None"
+                            )
+                            : "None"
+                    }
+
+                </span>
+
+            </div>
+
+
+            <div class="result-row">
+
+                <span class="result-key">
+                    Next Action
+                </span>
+
+                <span class="result-value">
+                    ${escapeHtml(
+                        compliance.next_action ||
+                        compliance.recommended_action ||
+                        "—"
+                    )}
+                </span>
+
+            </div>
+
+        </div>
+
+    `;
+}
+
+
+/* =========================================================
+   APPROVAL PANEL
+========================================================= */
+
+function renderApproval(
+    amount,
+    service
+) {
+
+    return `
+
+        <div class="approval-panel">
+
+            <div class="approval-top">
+
+                <div>
+
+                    <div class="approval-title">
+                        Human Approval Required
+                    </div>
+
+                    <div class="approval-description">
+
+                        AURA completed the risk check.
+                        Approve this payment to continue to Razorpay Checkout.
+
+                    </div>
+
+                </div>
+
+
+                <div class="approval-amount">
+
+                    ${
+                        amount
+                            ? money(amount)
+                            : "₹0"
+                    }
+
+                </div>
+
+            </div>
+
+
+            <button
+                id="approvePaymentBtn"
+                class="approve-btn"
+                ${
+                    !amount
+                        ? "disabled"
+                        : ""
+                }
+            >
+                APPROVE PAYMENT
+            </button>
+
+        </div>
+
+    `;
+}
+
+
+/* =========================================================
+   APPROVE PAYMENT
+========================================================= */
+
+async function approvePayment() {
+
+    const button =
+        $("approvePaymentBtn");
+
+
+    if (!button) {
+        return;
+    }
+
+
+    if (!currentApproval) {
+
+        showToast(
+            "No payment is waiting for approval.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    const amount =
+        Number(
+            currentApproval.amount
+        );
+
+
+    if (
+        !amount ||
+        amount <= 0
+    ) {
+
+        showToast(
+            "Payment amount is invalid.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    button.disabled = true;
+
+    button.textContent =
+        "APPROVING PAYMENT...";
+
+
+    try {
+
+        /*
+         * THIS IS THE IMPORTANT PART.
+         *
+         * Backend expects:
+         *
+         * decision:
+         * "PAYMENT_READY"
+         *
+         * It does NOT expect:
+         *
+         * approved: true
+         */
+
+        const payload = {
+
+            request_id:
+                currentApproval.request_id ||
+                requestId(),
+
+            decision:
+                "PAYMENT_READY",
+
+            amount:
+                amount,
+
+            currency:
+                "INR",
+
+            service:
+                currentApproval.service ||
+                DEFAULT_SERVICE
+
+        };
+
+
+        const data =
+            await api(
+                "/payment/approve",
+                {
+                    method: "POST",
+
+                    body:
+                        JSON.stringify(
+                            payload
+                        )
+                }
+            );
+
+
+        const orderId =
+            data.razorpay_order_id;
+
+
+        if (!orderId) {
+
+            throw new Error(
+                "Approval succeeded but Razorpay order ID was not returned."
+            );
+
+        }
+
+
+        currentOrder = {
+
+            order_id:
+                orderId,
+
+            amount:
+                Number(
+                    data.amount ||
+                    amount
+                ),
+
+            currency:
+                data.currency ||
+                "INR",
+
+            service:
+                data.service ||
+                DEFAULT_SERVICE
+
+        };
+
+
+        /*
+         * Replace approval button
+         * with approved state.
+         */
+
+        const panel =
+            button.closest(
+                ".approval-panel"
+            );
+
+
+        panel.innerHTML = `
+
+            <div class="approval-top">
+
+                <div>
+
+                    <div class="approval-title">
+                        ✓ Payment Approved
+                    </div>
+
+                    <div class="approval-description">
+
+                        Human approval recorded.
+                        Razorpay checkout is ready.
+
+                    </div>
+
+                </div>
+
+
+                <span class="badge badge-low">
+                    APPROVED
+                </span>
+
+            </div>
+
+
+            <div class="result-row"
+                 style="margin-top:10px;">
+
+                <span class="result-key">
+                    Razorpay Order
+                </span>
+
+                <span class="result-value">
+                    ${escapeHtml(
+                        orderId
+                    )}
+                </span>
+
+            </div>
+
+
+            <button
+                id="checkoutBtn"
+                class="approve-btn"
+            >
+                OPEN RAZORPAY CHECKOUT
+            </button>
+
+        `;
+
+
+        $("checkoutBtn")
+            .addEventListener(
+                "click",
+                () => {
+
+                    openCheckout(
+                        currentOrder
+                    );
+
+                }
+            );
+
+
+        showToast(
+            "Payment approved successfully.",
+            "success"
+        );
+
+
+        /*
+         * Open checkout immediately.
+         */
+
+        openCheckout(
+            currentOrder
+        );
+
+
+    }
+    catch (error) {
+
+        console.error(
+            "Approval error:",
+            error
+        );
+
+
+        button.disabled = false;
+
+        button.textContent =
+            "APPROVE PAYMENT";
+
+
+        showToast(
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   RAZORPAY CHECKOUT
+========================================================= */
+
+function openCheckout(order) {
+
+    if (!window.Razorpay) {
+
+        showToast(
+            "Razorpay Checkout failed to load.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    const amountSubunits =
+        Math.round(
+            Number(order.amount) *
+            100
+        );
+
+
+    const options = {
+
+        key:
+            RAZORPAY_KEY,
+
+        amount:
+            amountSubunits,
+
+        currency:
+            order.currency ||
+            "INR",
+
+        name:
+            "AURA",
+
+        description:
+            order.service ||
+            DEFAULT_SERVICE,
+
+        order_id:
+            order.order_id,
+
+
+        theme: {
+            color: "#111315"
+        },
+
+
+        handler:
+            function(response) {
+
+                showToast(
+                    "Checkout completed successfully.",
+                    "success"
+                );
+
+
+                showPaymentSuccess(
+                    response
+                );
+
+
+                /*
+                 * Give the webhook
+                 * a little time to record
+                 * the transaction.
+                 */
+
+                setTimeout(
+                    loadPayments,
+                    2500
+                );
+
+            },
+
+
+        modal: {
+
+            ondismiss:
+                function() {
+
+                    showToast(
+                        "Razorpay checkout closed."
+                    );
+
+                }
+
+        }
+
+    };
+
+
+    const razorpay =
+        new Razorpay(
+            options
+        );
+
+
+    razorpay.on(
+        "payment.failed",
+        function(response) {
+
+            showToast(
+                response.error?.description ||
+                "Payment failed.",
+                "error"
+            );
+
+        }
+    );
+
+
+    razorpay.open();
+
+}
+
+
+/* =========================================================
+   PAYMENT SUCCESS
+========================================================= */
+
+function showPaymentSuccess(
+    response
+) {
+
+    const existing =
+        $("checkoutSuccess");
+
+
+    if (existing) {
+        existing.remove();
+    }
+
+
+    const container =
+        $("brainResult");
+
+
+    if (!container) {
+        return;
+    }
+
+
+    const box =
+        document.createElement(
+            "div"
+        );
+
+
+    box.id =
+        "checkoutSuccess";
+
+
+    box.className =
+        "result-card";
+
+
+    box.style.marginTop =
+        "12px";
+
+
+    box.innerHTML = `
+
+        <div class="result-card-title">
+            Payment Checkout
+        </div>
+
+
+        <div class="result-row">
+
+            <span class="result-key">
+                Payment ID
+            </span>
+
+            <span class="result-value">
+                ${escapeHtml(
+                    response.razorpay_payment_id ||
+                    "—"
+                )}
+            </span>
+
+        </div>
+
+
+        <div class="result-row">
+
+            <span class="result-key">
+                Order ID
+            </span>
+
+            <span class="result-value">
+                ${escapeHtml(
+                    response.razorpay_order_id ||
+                    "—"
+                )}
+            </span>
+
+        </div>
+
+
+        <div style="margin-top:9px;">
+
+            <span class="badge badge-low">
+                CHECKOUT COMPLETED
+            </span>
+
+        </div>
+
+    `;
+
+
+    container.appendChild(
+        box
+    );
+
+}
+
+
+/* =========================================================
+   COMPLIANCE FORM
+========================================================= */
+
+$("complianceForm")
+    .addEventListener(
+        "submit",
+        async event => {
+
+            event.preventDefault();
+
+
+            const result =
+                $("complianceResult");
+
+
+            try {
+
+                const data =
+                    await api(
+                        "/compliance",
+                        {
+                            method: "POST",
+
+                            body:
+                                JSON.stringify({
+
+                                    shipping_bill:
+                                        $(
+                                            "shipping_bill"
+                                        ).value.trim(),
+
+                                    invoice:
+                                        $(
+                                            "invoice"
+                                        ).value.trim(),
+
+                                    gst_lut:
+                                        boolValue(
+                                            "gst_lut"
+                                        ),
+
+                                    edpms_realized:
+                                        boolValue(
+                                            "edpms_realized"
+                                        ),
+
+                                    e_firc:
+                                        boolValue(
+                                            "e_firc"
+                                        )
+
+                                })
+                        }
+                    );
+
+
+                result.innerHTML = `
+
+                    <div
+                        class="result-card"
+                        style="margin-top:15px;"
+                    >
+
+                        <div class="result-card-title">
+                            Compliance Result
+                        </div>
+
+
+                        <div class="result-row">
+
+                            <span class="result-key">
+                                Risk
+                            </span>
+
+                            <span class="result-value">
+
+                                <span
+                                    class="badge ${riskBadge(
+                                        data.risk
+                                    )}"
+                                >
+                                    ${escapeHtml(
+                                        data.risk ||
+                                        "UNKNOWN"
+                                    )}
+                                </span>
+
+                            </span>
+
+                        </div>
+
+
+                        <div class="result-row">
+
+                            <span class="result-key">
+                                Status
+                            </span>
+
+                            <span class="result-value">
+                                ${escapeHtml(
+                                    data.status ||
+                                    "—"
+                                )}
+                            </span>
+
+                        </div>
+
+
+                        <div class="result-row">
+
+                            <span class="result-key">
+                                Next Action
+                            </span>
+
+                            <span class="result-value">
+                                ${escapeHtml(
+                                    data.next_action ||
+                                    data.recommended_action ||
+                                    "—"
+                                )}
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <details>
+
+                        <summary>
+                            Technical details
+                        </summary>
+
+                        <pre>${escapeHtml(
+                            JSON.stringify(
+                                data,
+                                null,
+                                2
+                            )
+                        )}</pre>
+
+                    </details>
+
+                `;
+
+
+                showToast(
+                    "Compliance audit completed.",
+                    "success"
+                );
+
+            }
+            catch (error) {
+
+                result.innerHTML = `
+
+                    <div
+                        class="decision-panel"
+                        style="margin-top:15px;"
+                    >
+
+                        <span class="badge badge-high">
+                            ERROR
+                        </span>
+
+                        <div
+                            style="
+                                margin-top:8px;
+                                font-size:10px;
+                            "
+                        >
+                            ${escapeHtml(
+                                error.message
+                            )}
+                        </div>
+
+                    </div>
+
+                `;
+
+
+                showToast(
+                    error.message,
+                    "error"
+                );
+
+            }
+
+        }
+    );
+
+
+/* =========================================================
+   VENDOR FORM
+========================================================= */
+
+$("invoice_date").value =
+    localDate();
+
+
+$("vendorForm")
+    .addEventListener(
+        "submit",
+        async event => {
+
+            event.preventDefault();
+
+
+            const result =
+                $("vendorResult");
+
+
+            try {
+
+                const data =
+                    await api(
+                        "/vendor",
+                        {
+                            method: "POST",
+
+                            body:
+                                JSON.stringify({
+
+                                    invoice_amount:
+                                        Number(
+                                            $(
+                                                "invoice_amount"
+                                            ).value
+                                        ),
+
+                                    invoice_date:
+                                        $(
+                                            "invoice_date"
+                                        ).value,
+
+                                    is_msme:
+                                        boolValue(
+                                            "is_msme"
+                                        ),
+
+                                    has_written_agreement:
+                                        boolValue(
+                                            "has_written_agreement"
+                                        )
+
+                                })
+                        }
+                    );
+
+
+                const risk =
+                    data["43B_h_risk"] ||
+                    data.risk ||
+                    "UNKNOWN";
+
+
+                result.innerHTML = `
+
+                    <div
+                        class="result-card"
+                        style="margin-top:15px;"
+                    >
+
+                        <div class="result-card-title">
+                            Vendor Agent Result
+                        </div>
+
+
+                        <div class="result-row">
+
+                            <span class="result-key">
+                                Vendor Type
+                            </span>
+
+                            <span class="result-value">
+                                ${escapeHtml(
+                                    data.vendor_type ||
+                                    "—"
+                                )}
+                            </span>
+
+                        </div>
+
+
+                        <div class="result-row">
+
+                            <span class="result-key">
+                                Payment Limit
+                            </span>
+
+                            <span class="result-value">
+                                ${escapeHtml(
+                                    data.payment_limit_days ??
+                                    "—"
+                                )}
+                                days
+                            </span>
+
+                        </div>
+
+
+                        <div class="result-row">
+
+                            <span class="result-key">
+                                Due Date
+                            </span>
+
+                            <span class="result-value">
+                                ${escapeHtml(
+                                    data.due_date ||
+                                    "—"
+                                )}
+                            </span>
+
+                        </div>
+
+
+                        <div class="result-row">
+
+                            <span class="result-key">
+                                Days Remaining
+                            </span>
+
+                            <span class="result-value">
+                                ${escapeHtml(
+                                    data.days_remaining ??
+                                    "—"
+                                )}
+                            </span>
+
+                        </div>
+
+
+                        <div class="result-row">
+
+                            <span class="result-key">
+                                43B(h) Risk
+                            </span>
+
+                            <span class="result-value">
+
+                                <span
+                                    class="badge ${riskBadge(
+                                        risk
+                                    )}"
+                                >
+                                    ${escapeHtml(
+                                        risk
+                                    )}
+                                </span>
+
+                            </span>
+
+                        </div>
+
+
+                        <div class="result-row">
+
+                            <span class="result-key">
+                                Recommendation
+                            </span>
+
+                            <span class="result-value">
+                                ${escapeHtml(
+                                    data.recommended_action ||
+                                    "—"
+                                )}
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                `;
+
+
+                showToast(
+                    "Vendor analysis completed.",
+                    "success"
+                );
+
+            }
+            catch (error) {
+
+                result.innerHTML = `
+
+                    <div
+                        class="decision-panel"
+                        style="margin-top:15px;"
+                    >
+
+                        <span class="badge badge-high">
+                            ERROR
+                        </span>
+
+                        <div
+                            style="margin-top:8px;"
+                        >
+                            ${escapeHtml(
+                                error.message
+                            )}
+                        </div>
+
+                    </div>
+
+                `;
+
+                showToast(
+                    error.message,
+                    "error"
+                );
+
+            }
+
+        }
+    );
+
+
+/* =========================================================
+   MANUAL PAYMENT
+========================================================= */
+
+$("manualPaymentForm")
+    .addEventListener(
+        "submit",
+        async event => {
+
+            event.preventDefault();
+
+
+            const button =
+                $("manualPayBtn");
+
+
+            const amount =
+                Number(
+                    $("manual_amount").value
+                );
+
+
+            const service =
+                $("manual_service")
+                    .value
+                    .trim() ||
+                DEFAULT_SERVICE;
+
+
+            if (
+                !amount ||
+                amount <= 0
+            ) {
+
+                showToast(
+                    "Enter a valid amount.",
+                    "error"
+                );
+
+                return;
+            }
+
+
+            button.disabled = true;
+
+            button.textContent =
+                "CREATING ORDER...";
+
+
+            try {
+
+                const data =
+                    await api(
+                        "/payment/create",
+                        {
+                            method: "POST",
+
+                            body:
+                                JSON.stringify({
+
+                                    service:
+                                        service,
+
+                                    amount:
+                                        amount,
+
+                                    currency:
+                                        "INR"
+
+                                })
+                        }
+                    );
+
+
+                const orderId =
+                    data.razorpay_order_id ||
+                    data.order_id;
+
+
+                if (!orderId) {
+
+                    throw new Error(
+                        "Razorpay order ID was not returned."
+                    );
+
+                }
+
+
+                currentOrder = {
+
+                    order_id:
+                        orderId,
+
+                    amount:
+                        Number(
+                            data.amount ||
+                            amount
+                        ),
+
+                    currency:
+                        data.currency ||
+                        "INR",
+
+                    service:
+                        data.service ||
+                        service
+
+                };
+
+
+                $("manualPaymentResult")
+                    .innerHTML = `
+
+                        <div
+                            class="result-card"
+                            style="margin-top:15px;"
+                        >
+
+                            <div class="result-card-title">
+                                Razorpay Order Ready
+                            </div>
+
+
+                            <div class="result-row">
+
+                                <span class="result-key">
+                                    Order ID
+                                </span>
+
+                                <span class="result-value">
+                                    ${escapeHtml(
+                                        orderId
+                                    )}
+                                </span>
+
+                            </div>
+
+
+                            <div class="result-row">
+
+                                <span class="result-key">
+                                    Amount
+                                </span>
+
+                                <span class="result-value">
+                                    ${money(
+                                        amount
+                                    )}
+                                </span>
+
+                            </div>
+
+
+                            <button
+                                id="manualCheckoutAgain"
+                                class="approve-btn"
+                            >
+                                OPEN RAZORPAY CHECKOUT
+                            </button>
+
+                        </div>
+
+                    `;
+
+
+                $("manualCheckoutAgain")
+                    .addEventListener(
+                        "click",
+                        () => {
+
+                            openCheckout(
+                                currentOrder
+                            );
+
+                        }
+                    );
+
+
+                openCheckout(
+                    currentOrder
+                );
+
+
+                showToast(
+                    "Razorpay order created.",
+                    "success"
+                );
+
+            }
+            catch (error) {
+
+                $("manualPaymentResult")
+                    .innerHTML = `
+
+                        <div
+                            class="decision-panel"
+                            style="margin-top:15px;"
+                        >
+
+                            <span class="badge badge-high">
+                                PAYMENT ERROR
+                            </span>
+
+                            <div
+                                style="margin-top:8px;"
+                            >
+                                ${escapeHtml(
+                                    error.message
+                                )}
+                            </div>
+
+                        </div>
+
+                    `;
+
+
+                showToast(
+                    error.message,
+                    "error"
+                );
+
+            }
+            finally {
+
+                button.disabled =
+                    false;
+
+                button.textContent =
+                    "CREATE & PAY";
+
+            }
+
+        }
+    );
+
+
+/* =========================================================
+   PAYMENT HISTORY
+========================================================= */
+
+$("refreshPaymentsBtn")
+    .addEventListener(
+        "click",
+        loadPayments
+    );
+
+
+async function loadPayments() {
+
+    const body =
+        $("paymentsBody");
+
+
+    try {
+
+        const data =
+            await api(
+                "/payments"
+            );
+
+
+        const payments =
+            Array.isArray(
+                data.payments
+            )
+                ? data.payments
+                : [];
+
+
+        $("overviewPayments")
+            .textContent =
+            payments.length;
+
+
+        if (!payments.length) {
+
+            body.innerHTML = `
+
+                <tr>
+
+                    <td
+                        colspan="6"
+                        class="empty"
+                    >
+                        No recorded payments yet.
+                    </td>
+
+                </tr>
+
+            `;
+
+            return;
+        }
+
+
+        body.innerHTML =
+            payments
+                .slice()
+                .reverse()
+                .map(
+                    payment => {
+
+                        const status =
+                            String(
+                                payment.status ||
+                                "UNKNOWN"
+                            ).toUpperCase();
+
+
+                        return `
+
+                            <tr>
+
+                                <td>
+                                    ${escapeHtml(
+                                        payment.transaction_id ||
+                                        "—"
+                                    )}
+                                </td>
+
+                                <td>
+                                    ${escapeHtml(
+                                        payment.razorpay_order_id ||
+                                        "—"
+                                    )}
+                                </td>
+
+                                <td>
+                                    ${money(
+                                        payment.amount
+                                    )}
+                                </td>
+
+                                <td>
+                                    ${escapeHtml(
+                                        payment.payment_method ||
+                                        "—"
+                                    )}
+                                </td>
+
+                                <td>
+
+                                    <span
+                                        class="badge ${
+                                            status ===
+                                            "CAPTURED"
+                                                ? "badge-low"
+                                                : status ===
+                                                  "FAILED"
+                                                    ? "badge-high"
+                                                    : "badge-neutral"
+                                        }"
+                                    >
+                                        ${escapeHtml(
+                                            status
+                                        )}
+                                    </span>
+
+                                </td>
+
+                                <td>
+                                    ${formatDate(
+                                        payment.received_at
+                                    )}
+                                </td>
+
+                            </tr>
+
+                        `;
+
+                    }
+                )
+                .join("");
+
+
+    }
+    catch (error) {
+
+        body.innerHTML = `
+
+            <tr>
+
+                <td
+                    colspan="6"
+                    class="empty"
+                >
+                    Unable to load payment history.
+                </td>
+
+            </tr>
+
+        `;
+
+        console.error(
+            error
+        );
+
+    }
+
+}
+
+
+function formatDate(value) {
+
+    if (!value) {
+        return "—";
+    }
+
+
+    const date =
+        new Date(value);
+
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+
+        return escapeHtml(
+            value
+        );
+
+    }
+
+
+    return escapeHtml(
+        date.toLocaleString(
+            "en-IN",
+            {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+
+                hour: "2-digit",
+                minute: "2-digit"
+            }
+        )
+    );
+
+}
+
+
+/* =========================================================
+   OVERVIEW
+========================================================= */
+
+function updateOverview(data) {
+
+    const risk =
+        getRisk(data);
+
+
+    const decision =
+        getDecision(data);
+
+
+    $("overviewRisk")
+        .textContent =
+        risk.risk_level ||
+        "—";
+
+
+    $("overviewDecision")
+        .textContent =
+        decision ||
+        "—";
+
+}
+
+
+/* =========================================================
+   INITIALIZE
+========================================================= */
+
+async function initialize() {
+
+    $("invoice_date")
+        .value =
+        localDate();
+
+
+    await loadPayments();
+
+}
+
+
+initialize();
+
+</script>
+
+</body>
+</html>
