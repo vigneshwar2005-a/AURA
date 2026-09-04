@@ -1,4 +1,4 @@
-#** AURA — Autonomous Unified Razorpay Agent
+AURA — Autonomous Unified Razorpay Agent
 
 AI-powered autonomous payment orchestration for exporters.
 
@@ -70,8 +70,7 @@ AURA addresses this gap by acting as an intelligent control layer between the us
 
 ---
 
-#** AI Intent Layer
-
+# **AI Intent Layer**
 AURA includes a dedicated AI Intent Layer powered by:
 
 - **Qwen 2.5:3B** 
@@ -130,8 +129,7 @@ Executes payment
 
 ---
 
-#** AURA Brain
-
+# **AURA Brain**
 The AURA Brain is the main orchestration layer.
 
 It:
@@ -151,8 +149,7 @@ The Brain never creates a Razorpay order during initial analysis.
 
 ---
 
-#** Agents
-
+# **Agents**
 ## Vendor Agent
 
 The Vendor Agent evaluates vendor payment risk.
@@ -223,8 +220,7 @@ This ensures that analysis and execution remain separate.
 
 ---
 
-#** Risk Engine
-
+# **Risk Engine**
 The Risk Engine combines risk signals from the specialized agents and produces a deterministic final risk level.
 
 | RiskScoreDecision |    |                  |
@@ -251,8 +247,7 @@ The final financial decision does not depend on an AI-generated approval.
 
 ---
 
-#** Human Approval
-
+# **Human Approval**
 AURA introduces an explicit human authorization boundary.
 
 The initial analysis can produce:
@@ -287,8 +282,7 @@ the payment cannot proceed through the normal approval flow.
 
 ---
 
-#** Razorpay Payment Flow
-
+# **Razorpay Payment Flow**
 AURA Analysis
      ↓
 PAYMENT_READY
@@ -307,8 +301,7 @@ AURA has been integrated with Razorpay Test Mode for the prototype.
 
 ---
 
-#** Demo Scenarios
-
+# **Demo Scenarios**
 ## 1. LOW Risk
 
 ### Request
@@ -423,8 +416,7 @@ Payment
 
 ---
 
-#** Audit Trail
-
+# **Audit Trail**
 AURA records important workflow events including:
 
 -  Request received 
@@ -442,8 +434,7 @@ This provides visibility into **why a payment was allowed, reviewed, or blocked*
 
 ---
 
-#** Technology Stack
-
+# **Technology Stack**
 ### Backend
 
 -  Python 
@@ -475,8 +466,7 @@ This provides visibility into **why a payment was allowed, reviewed, or blocked*
 
 ---
 
-#** Project Structure
-
+# **Project Structure**
 AURA/
 │
 ├── backend/
@@ -513,8 +503,7 @@ AURA/
 
 ---
 
-#** Setup
-
+# **Setup**
 ## 1. Clone the Repository
 
 git clone https://github.com/vigneshwar2005-a/AURA.git
@@ -547,8 +536,7 @@ RAZORPAY_WEBHOOK_SECRET=your_razorpay_webhook_secret
 
 ---
 
-#** Run AURA
-
+# **Run AURA**
 ## Backend
 
 From:
@@ -583,8 +571,7 @@ http://127.0.0.1:5500/index.html
 
 ---
 
-#** Run the AI Intent Layer
-
+# **Run the AI Intent Layer**
 Make sure Ollama is running with the Qwen model:
 
 qwen2.5:3b
@@ -599,8 +586,7 @@ It does not execute payments.
 
 ---
 
-#** Security & Safety
-
+# **Security & Safety**
 AURA is designed with multiple financial safety boundaries.
 
 -  Real Razorpay credentials are stored only in `.env` 
@@ -617,8 +603,7 @@ AURA is designed with multiple financial safety boundaries.
 
 ---
 
-#** Project Status
-
+# **Project Status**
 **Buildathon-ready prototype using Razorpay Test Mode.**
 
 The prototype demonstrates:
