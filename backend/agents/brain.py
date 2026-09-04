@@ -1,3 +1,4 @@
+import json
 import re
 from datetime import date, timedelta
 
@@ -5,60 +6,88 @@ from agents.vendor import check_vendor_payment
 from agents.compliance import check_export_compliance
 from services.risk_engine import calculate_risk
 
+try:
+    from services.ai_intent import analyze_payment_intent
+except Exception:
+    analyze_payment_intent = None
+
 
 # ============================================================
-# AURA BRAIN
-# Autonomous multi-agent request orchestrator
+# AURA — Autonomous Unified Razorpay Agent
+# ============================================================
+#
+# AI Intent Layer:
+#   Qwen 2.5:3B understands the natural-language request.
+#
+# AURA Brain:
+#   Uses deterministic validation + AI enrichment to route
+#   the correct agents.
+#
+# Risk Engine:
+#   Deterministically decides LOW / MEDIUM / HIGH.
 #
 # IMPORTANT:
-# The Brain NEVER creates a Razorpay order.
-# Razorpay order creation happens only after explicit
-# human approval through /payment/approve.
+#   AI NEVER approves or executes payments.
+#   Razorpay execution remains behind explicit human approval.
 # ============================================================
 
+
+# ============================================================
+# ACTIVITY
+# ============================================================
+
+def build_activity(
+    agent: str,
+    message: str,
+    status: str = "completed"
+):
+    return {
+        "agent": agent,
+        "message": message,
+        "status": status
+    }
+
+
+# ============================================================
+# AMOUNT EXTRACTION
+# ============================================================
 
 def extract_amount(request: str):
     """
-    Extract an INR amount from a natural-language request.
+    Extract payment amount.
 
     Supports:
-      ₹50,000
-      Rs 50000
-      INR 50000
-      50000 rupees
-      ₹50k
-      ₹1 lakh
+        ₹50,000
+        ₹50000
+        Rs 50000
+        INR 50000
+        50k
+        50 thousand
+        1 lakh
+
+    IMPORTANT:
+        Never invents a default amount.
     """
 
-    request_lower = request.lower()
+    if not request:
+        return None
+
+    text = request.lower().replace(",", "").strip()
 
     patterns = [
-        (
-            r"₹\s*([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh)?",
-            True
-        ),
-        (
-            r"rs\.?\s*([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh)?",
-            True
-        ),
-        (
-            r"inr\s*([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh)?",
-            True
-        ),
-        (
-            r"([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh)\b",
-            True
-        ),
-        (
-            r"([\d,]+(?:\.\d+)?)\s*(?:rupees?)",
-            False
-        ),
+        r"₹\s*(\d+(?:\.\d+)?)",
+        r"\brs\.?\s*(\d+(?:\.\d+)?)",
+        r"\binr\s*(\d+(?:\.\d+)?)",
+        r"\b(\d+(?:\.\d+)?)\s*(?:thousand|k)\b",
+        r"\b(\d+(?:\.\d+)?)\s*lakh\b",
+        r"\bamount\s*(?:is|of)?\s*(\d+(?:\.\d+)?)\b",
     ]
 
-    for pattern, has_multiplier in patterns:
+    for index, pattern in enumerate(patterns):
+
         match = re.search(
             pattern,
-            request_lower,
+            text,
             re.IGNORECASE
         )
 
@@ -66,74 +95,42 @@ def extract_amount(request: str):
             continue
 
         try:
-            amount = float(
-                match.group(1).replace(",", "")
-            )
+            value = float(match.group(1))
+
+            if index == 3:
+                value *= 1000
+
+            elif index == 4:
+                value *= 100000
+
+            if value <= 0:
+                return None
+
+            return value
+
         except (TypeError, ValueError):
-            continue
-
-        if has_multiplier:
-            multiplier = match.group(2)
-
-            if multiplier:
-                multiplier = multiplier.lower()
-
-                if multiplier in ["k", "thousand"]:
-                    amount *= 1000
-
-                elif multiplier == "lakh":
-                    amount *= 100000
-
-        return amount
+            return None
 
     return None
 
 
-def extract_invoice_number(request: str):
-    """
-    Extract invoice numbers such as:
-
-      INV-102
-      INV102
-      Invoice 102
-    """
-
-    patterns = [
-        r"\bINV[-\s]?([A-Za-z0-9-]+)\b",
-        r"\binvoice[-\s#:]?([A-Za-z0-9-]+)\b",
-    ]
-
-    for pattern in patterns:
-        match = re.search(
-            pattern,
-            request,
-            re.IGNORECASE
-        )
-
-        if match:
-            return match.group(1)
-
-    return None
-
+# ============================================================
+# VENDOR EXTRACTION
+# ============================================================
 
 def extract_vendor_name(request: str):
-    """
-    Try to identify a vendor/supplier name.
 
-    Examples:
-
-      Pay ABC Exports ₹50,000
-      Pay supplier ABC Exports
-      Vendor XYZ Traders
-    """
+    if not request:
+        return None
 
     patterns = [
-        r"(?:pay|payment to|pay to|supplier|vendor)\s+"
-        r"([A-Za-z][A-Za-z0-9 &.-]{2,60}?)"
-        r"(?=\s+₹|\s+rs\.?|\s+inr|\s+for|\s+invoice|$)"
+        r"\bpay\s+([A-Za-z][A-Za-z0-9&.\- ]+?)(?=\s+₹|\s+rs\.?|\s+inr|\s+for\b|\s+after\b|\.|$)",
+
+        r"\bvendor\s+([A-Za-z][A-Za-z0-9&.\- ]+?)(?=\s+₹|\s+rs\.?|\s+inr|\s+for\b|\.|$)",
     ]
 
     for pattern in patterns:
+
         match = re.search(
             pattern,
             request,
@@ -141,349 +138,54 @@ def extract_vendor_name(request: str):
         )
 
         if match:
+
             name = match.group(1).strip()
 
-            ignored = {
-                "my",
-                "the",
-                "a",
-                "an",
-                "supplier",
-                "vendor"
-            }
-
-            if name.lower() not in ignored:
+            if name:
                 return name
 
     return None
 
 
-def extract_service(request: str):
-    """
-    Identify the commerce service from the request.
-    """
+# ============================================================
+# INVOICE EXTRACTION
+# ============================================================
 
-    request_lower = request.lower()
+def extract_invoice_number(request: str):
 
-    service_keywords = {
-        "customs": "Customs Service",
-        "shipping": "Shipping Service",
-        "logistics": "Logistics Service",
-        "freight": "Freight Service",
-        "documentation": "Export Documentation Service",
-        "consulting": "Export Consulting Service",
-        "software": "Software Service",
-        "development": "Software Development Service",
-        "inspection": "Export Inspection Service",
-        "warehousing": "Warehousing Service",
-        "warehouse": "Warehousing Service",
-        "insurance": "Export Insurance Service",
-    }
+    if not request:
+        return None
 
-    for keyword, service_name in service_keywords.items():
-        if keyword in request_lower:
-            return service_name
-
-    return "AURA Exporter Service"
-
-
-def detect_intent(request: str):
-    """
-    Determine which AURA agents are required.
-
-    Returns:
-
-      vendor
-      compliance
-      commerce
-      vendor_commerce
-      compliance_commerce
-      vendor_compliance
-      full_export_workflow
-      analysis
-      unknown
-    """
-
-    text = request.lower()
-
-    vendor_keywords = [
-        "vendor",
-        "supplier",
-        "msme",
-        "43b",
-        "43b(h)",
-        "invoice",
-        "payment due",
-        "payment deadline"
-    ]
-
-    compliance_keywords = [
-        "compliance",
-        "edpms",
-        "firc",
-        "e-firc",
-        "fira",
-        "gst",
-        "lut",
-        "shipping bill",
-        "export invoice",
-        "realization",
-        "softex",
-        "purpose code"
-    ]
-
-    commerce_keywords = [
-        "payment",
-        "pay",
-        "order",
-        "buy",
-        "purchase",
-        "checkout",
-        "razorpay"
-    ]
-
-    needs_vendor = any(
-        keyword in text
-        for keyword in vendor_keywords
+    match = re.search(
+        r"\binvoice\s+(?:number\s+|no\.?\s+|#\s*)?([A-Za-z0-9\-_\/]+)",
+        request,
+        re.IGNORECASE
     )
 
-    needs_compliance = any(
-        keyword in text
-        for keyword in compliance_keywords
-    )
+    if match:
+        return match.group(1).strip()
 
-    needs_commerce = any(
-        keyword in text
-        for keyword in commerce_keywords
-    )
-
-    # IMPORTANT:
-    # Check full workflow FIRST.
-    if (
-        needs_vendor
-        and needs_compliance
-        and needs_commerce
-    ):
-        return "full_export_workflow"
-
-    if needs_vendor and needs_commerce:
-        return "vendor_commerce"
-
-    if needs_compliance and needs_commerce:
-        return "compliance_commerce"
-
-    if needs_vendor and needs_compliance:
-        return "vendor_compliance"
-
-    if needs_vendor:
-        return "vendor"
-
-    if needs_compliance:
-        return "compliance"
-
-    if needs_commerce:
-        return "commerce"
-
-    if any(
-        word in text
-        for word in [
-            "analyze",
-            "analyse",
-            "check",
-            "audit",
-            "risk",
-            "exporter",
-            "business"
-        ]
-    ):
-        return "analysis"
-
-    return "unknown"
-
-
-def get_required_agents(intent: str):
-    """
-    Return the agents required for the detected intent.
-    """
-
-    mapping = {
-        "vendor": [
-            "VENDOR"
-        ],
-        "compliance": [
-            "COMPLIANCE"
-        ],
-        "commerce": [
-            "COMMERCE"
-        ],
-        "vendor_commerce": [
-            "VENDOR",
-            "COMMERCE"
-        ],
-        "compliance_commerce": [
-            "COMPLIANCE",
-            "COMMERCE"
-        ],
-        "vendor_compliance": [
-            "VENDOR",
-            "COMPLIANCE"
-        ],
-        "full_export_workflow": [
-            "VENDOR",
-            "COMPLIANCE",
-            "COMMERCE"
-        ],
-        "analysis": [
-            "BRAIN"
-        ],
-        "unknown": [
-            "BRAIN"
-        ]
-    }
-
-    return mapping.get(
-        intent,
-        ["BRAIN"]
-    )
-
-
-def build_activity(
-    agent,
-    action,
-    status="completed"
-):
-    """
-    Create a standardized explainable
-    agent activity event.
-    """
-
-    return {
-        "agent": agent,
-        "action": action,
-        "status": status
-    }
-
-
-def build_agentic_commerce_context(
-    request: str,
-    intent: str,
-    required_agents: list[str],
-    amount,
-    vendor_name,
-    invoice_number,
-    service: str,
-    decision: dict,
-):
-    """
-    Build a structured agentic-commerce context for the demo.
-
-    This is AP2/ACP-INSPIRED positioning, not a claim of native
-    AP2 or ACP protocol compliance.
-    """
-
-    decision_name = decision.get(
-        "decision",
-        "NO_ACTION"
-    )
-
-    if decision_name == "PAYMENT_READY":
-        authorization_state = "AWAITING_HUMAN_APPROVAL"
-        execution_state = "DEFERRED_UNTIL_AUTHORIZED"
-
-    elif decision_name == "REVIEW_REQUIRED":
-        authorization_state = "HUMAN_REVIEW_REQUIRED"
-        execution_state = "BLOCKED_PENDING_REVIEW"
-
-    elif decision_name == "BLOCK_PAYMENT":
-        authorization_state = "BLOCKED"
-        execution_state = "BLOCKED"
-
-    else:
-        authorization_state = "NOT_REQUIRED"
-        execution_state = "NOT_EXECUTABLE"
-
-    return {
-        "positioning": "AP2_ACP_INSPIRED_AGENTIC_COMMERCE",
-
-        "protocol_note": (
-            "Demo uses AP2/ACP-style concepts for agentic commerce. "
-            "It is not claiming native AP2 or ACP protocol compliance."
-        ),
-
-        "user_intent": {
-            "natural_language_request": request,
-            "intent": intent,
-
-            "entities": {
-                "amount": amount,
-                "currency": "INR",
-                "vendor_name": vendor_name,
-                "invoice_number": invoice_number,
-                "service": service,
-            },
-        },
-
-        "agent_plan": {
-            "required_agents": required_agents,
-            "execution_model": "MULTI_AGENT_ORCHESTRATION",
-            "decision": decision_name,
-        },
-
-        "payment_intent": {
-            "type": "BUSINESS_PAYMENT",
-            "amount": amount,
-            "currency": "INR",
-            "payee": vendor_name,
-            "invoice": invoice_number,
-            "service": service,
-
-            "status": (
-                "READY_FOR_AUTHORIZATION"
-                if decision_name == "PAYMENT_READY"
-                else execution_state
-            ),
-        },
-
-        "authorization": {
-            "mode": "HUMAN_IN_THE_LOOP",
-
-            "required": decision_name in [
-                "PAYMENT_READY",
-                "REVIEW_REQUIRED",
-            ],
-
-            "state": authorization_state,
-            "approval_endpoint": "/payment/approve",
-        },
-
-        "payment_execution": {
-            "provider": "Razorpay",
-
-            "order_creation": (
-                "AFTER_HUMAN_APPROVAL"
-            ),
-
-            "state": execution_state,
-            "razorpay_order_id": None,
-        },
-    }
+    return None
 
 
 # ============================================================
-# VENDOR AGENT
+# DUE-DAY EXTRACTION
 # ============================================================
 
 def extract_explicit_due_days(request: str):
     """
-    Extract an explicit payment deadline stated by the user.
+    Detect explicit timing from the user's request.
 
     Examples:
-      payment is due within 5 days
-      due in 3 days
-      deadline in 2 days
-      payment due in 7 days
-      overdue
+        due within 5 days
+        due in 3 days
+        payment deadline in 2 days
+        overdue
+        payment is late
     """
+
+    if not request:
+        return None
 
     text = request.lower().strip()
 
@@ -502,7 +204,7 @@ def extract_explicit_due_days(request: str):
         r"\bdeadline\s+(?:is\s+)?"
         r"(?:within|in)\s+(\d+)\s+days?\b",
 
-        r"\bpayment\s+deadline\s+(?:is\s+)?"
+        r"\bpayment deadline\s+(?:is\s+)?"
         r"(?:within|in)\s+(\d+)\s+days?\b",
 
         r"\bwithin\s+(\d+)\s+days?\b",
@@ -527,18 +229,16 @@ def extract_explicit_due_days(request: str):
     return None
 
 
+# ============================================================
+# APPLY USER-STATED DEADLINE
+# ============================================================
+
 def apply_explicit_vendor_deadline(
     vendor_result: dict,
-    request: str,
+    request: str
 ):
-    """
-    Apply a payment deadline explicitly stated in the
-    natural-language request.
-    """
 
-    due_days = extract_explicit_due_days(
-        request
-    )
+    due_days = extract_explicit_due_days(request)
 
     if due_days is None:
         return vendor_result
@@ -549,43 +249,21 @@ def apply_explicit_vendor_deadline(
         today + timedelta(days=due_days)
     )
 
-    vendor_result = dict(
-        vendor_result
-    )
+    vendor_result = dict(vendor_result)
 
     vendor_result["stated_deadline"] = True
+    vendor_result["deadline_source"] = "USER_STATED"
+    vendor_result["stated_days_remaining"] = due_days
+    vendor_result["due_date"] = str(stated_due_date)
+    vendor_result["days_remaining"] = due_days
 
-    vendor_result["deadline_source"] = (
-        "USER_STATED"
-    )
-
-    vendor_result["stated_days_remaining"] = (
-        due_days
-    )
-
-    vendor_result["due_date"] = (
-        str(stated_due_date)
-    )
-
-    vendor_result["days_remaining"] = (
-        due_days
-    )
-
-    # ========================================================
     # OVERDUE
-    # ========================================================
-
     if due_days <= 0:
 
         vendor_result["status"] = "OVERDUE"
-
         vendor_result["risk"] = "HIGH"
-
         vendor_result["43B_h_risk"] = "HIGH"
-
-        vendor_result["decision"] = (
-            "BLOCK_PAYMENT"
-        )
+        vendor_result["decision"] = "BLOCK_PAYMENT"
 
         vendor_result["message"] = (
             "The user-stated MSME payment deadline has already "
@@ -597,26 +275,18 @@ def apply_explicit_vendor_deadline(
             "tax impact before proceeding."
         )
 
-    # ========================================================
     # DUE SOON
-    # ========================================================
-
     elif due_days <= 5:
 
         vendor_result["status"] = "DUE_SOON"
-
         vendor_result["risk"] = "MEDIUM"
-
         vendor_result["43B_h_risk"] = "MEDIUM"
-
-        vendor_result["decision"] = (
-            "REVIEW_REQUIRED"
-        )
+        vendor_result["decision"] = "REVIEW_REQUIRED"
 
         vendor_result["message"] = (
             f"The user-stated MSME payment deadline is in "
-            f"{due_days} "
-            f"day{'s' if due_days != 1 else ''}."
+            f"{due_days} day"
+            f"{'s' if due_days != 1 else ''}."
         )
 
         vendor_result["recommended_action"] = (
@@ -624,21 +294,13 @@ def apply_explicit_vendor_deadline(
             "the stated deadline."
         )
 
-    # ========================================================
     # WITHIN LIMIT
-    # ========================================================
-
     else:
 
         vendor_result["status"] = "WITHIN_LIMIT"
-
         vendor_result["risk"] = "LOW"
-
         vendor_result["43B_h_risk"] = "LOW"
-
-        vendor_result["decision"] = (
-            "PAYMENT_READY"
-        )
+        vendor_result["decision"] = "PAYMENT_READY"
 
         vendor_result["message"] = (
             f"The user-stated MSME payment deadline is in "
@@ -653,18 +315,296 @@ def apply_explicit_vendor_deadline(
     return vendor_result
 
 
-def run_vendor_agent(request: str):
+# ============================================================
+# AI INTENT LAYER
+# ============================================================
+
+def run_ai_intent_layer(request: str):
+
+    if analyze_payment_intent is None:
+
+        return {
+            "success": False,
+            "status": "unavailable",
+            "message": "AI Intent Layer is unavailable.",
+            "data": {
+                "intent": None,
+                "amount": None,
+                "currency": None,
+                "vendor_name": None,
+                "invoice_number": None,
+                "due_days": None,
+                "is_overdue": False,
+                "requires_compliance": False
+            }
+        }
+
+    try:
+
+        result = analyze_payment_intent(
+            request
+        )
+
+        if not isinstance(result, dict):
+
+            return {
+                "success": False,
+                "status": "error",
+                "message": "AI returned an invalid response.",
+                "data": {}
+            }
+
+        result = dict(result)
+
+        result["status"] = "available"
+
+        return result
+
+    except Exception as exc:
+
+        return {
+            "success": False,
+            "status": "error",
+            "message": f"AI Intent Layer error: {str(exc)}",
+            "data": {}
+        }
+
+
+# ============================================================
+# DETERMINISTIC INTENT
+# ============================================================
+
+def detect_intent(request: str):
+
+    text = request.lower().strip()
+
+    has_payment = bool(
+        re.search(
+            r"\bpay\b|\bpayment\b|"
+            r"\bprocess\b.*\bpayment\b|"
+            r"\btransfer\b|\bsettle\b",
+            text
+        )
+    )
+
+    has_compliance = bool(
+        re.search(
+            r"\bcompliance\b|"
+            r"\bgst\s+lut\b|"
+            r"\bshipping\s+bill\b|"
+            r"\bexport\s+invoice\b|"
+            r"\bedpms\b|"
+            r"\be-firc\b|"
+            r"\bfirc\b|"
+            r"\brealization\b",
+            text
+        )
+    )
+
+    has_vendor = bool(
+        re.search(
+            r"\bvendor\b|"
+            r"\bmsme\b|"
+            r"\bmicro enterprise\b|"
+            r"\bsmall enterprise\b|"
+            r"\bsection 43b\b|"
+            r"\b43b\(h\)",
+            text
+        )
+    )
+
+    if has_payment and has_compliance:
+        return "full_export_workflow"
+
+    if has_payment and has_vendor:
+        return "vendor_commerce"
+
+    if has_payment:
+        return "commerce"
+
+    if has_compliance:
+        return "compliance"
+
+    return "unknown"
+
+
+# ============================================================
+# AI-ENRICHED AGENT ROUTING
+# ============================================================
+
+def determine_agent_requirements(
+    request: str,
+    deterministic_intent: str,
+    ai_result: dict
+):
     """
-    Execute Vendor Agent using information extracted
-    from the natural-language request.
+    Combines deterministic routing with AI enrichment.
+
+    AI can help identify:
+        - payment intent
+        - due date
+        - vendor
+        - compliance requirement
+
+    AI does NOT determine final risk.
     """
 
-    amount = extract_amount(
+    ai_data = {}
+
+    if isinstance(ai_result, dict):
+
+        ai_data = ai_result.get(
+            "data",
+            {}
+        )
+
+        if not isinstance(ai_data, dict):
+            ai_data = {}
+
+    text = request.lower()
+
+    ai_intent = str(
+        ai_data.get("intent") or ""
+    ).lower().strip()
+
+    ai_due_days = ai_data.get(
+        "due_days"
+    )
+
+    ai_overdue = bool(
+        ai_data.get("is_overdue", False)
+    )
+
+    ai_requires_compliance = bool(
+        ai_data.get(
+            "requires_compliance",
+            False
+        )
+    )
+
+    # --------------------------------------------------------
+    # Compliance detection
+    # --------------------------------------------------------
+
+    has_compliance_keywords = bool(
+        re.search(
+            r"\bcompliance\b|"
+            r"\bgst\s+lut\b|"
+            r"\bshipping\s+bill\b|"
+            r"\bexport\s+invoice\b|"
+            r"\bedpms\b|"
+            r"\be-firc\b|"
+            r"\bfirc\b|"
+            r"\brealization\b",
+            text
+        )
+    )
+
+    requires_compliance = (
+        ai_requires_compliance
+        or has_compliance_keywords
+    )
+
+    # --------------------------------------------------------
+    # Vendor/payment timing detection
+    # --------------------------------------------------------
+
+    explicit_due_days = extract_explicit_due_days(
         request
     )
 
-    # IMPORTANT:
-    # Never invent a payment amount.
+    vendor_context = bool(
+        explicit_due_days is not None
+        or ai_due_days is not None
+        or ai_overdue
+        or re.search(
+            r"\bvendor\b|"
+            r"\bmsme\b|"
+            r"\bmicro enterprise\b|"
+            r"\bsmall enterprise\b|"
+            r"\bsection 43b\b|"
+            r"\b43b\(h\)",
+            text
+        )
+    )
+
+    # AI identified a payment and timing context.
+    if ai_intent == "payment":
+        vendor_context = (
+            vendor_context
+            or ai_due_days is not None
+            or ai_overdue
+        )
+
+    # --------------------------------------------------------
+    # Final routing
+    # --------------------------------------------------------
+
+    if deterministic_intent == "unknown":
+
+        if ai_intent == "payment":
+            deterministic_intent = "commerce"
+
+        elif ai_intent == "compliance":
+            deterministic_intent = "compliance"
+
+    if deterministic_intent in [
+        "commerce",
+        "vendor_commerce",
+        "full_export_workflow",
+        "compliance_commerce"
+    ]:
+
+        if requires_compliance and vendor_context:
+            final_intent = "full_export_workflow"
+
+        elif requires_compliance:
+            final_intent = "compliance_commerce"
+
+        elif vendor_context:
+            final_intent = "vendor_commerce"
+
+        else:
+            final_intent = "commerce"
+
+    else:
+
+        final_intent = deterministic_intent
+
+    required_agents = ["brain"]
+
+    if final_intent in [
+        "vendor_commerce",
+        "full_export_workflow"
+    ]:
+        required_agents.append("vendor")
+
+    if final_intent in [
+        "compliance",
+        "compliance_commerce",
+        "full_export_workflow"
+    ]:
+        required_agents.append("compliance")
+
+    if final_intent in [
+        "commerce",
+        "vendor_commerce",
+        "compliance_commerce",
+        "full_export_workflow"
+    ]:
+        required_agents.append("commerce")
+
+    return final_intent, required_agents
+
+
+# ============================================================
+# VENDOR AGENT
+# ============================================================
+
+def run_vendor_agent(request: str):
+
+    amount = extract_amount(request)
+
     if amount is None:
 
         return {
@@ -673,13 +613,10 @@ def run_vendor_agent(request: str):
             "risk": "HIGH",
             "43B_h_risk": "HIGH",
             "decision": "BLOCK_PAYMENT",
-
             "message": (
-                "Payment amount is missing. "
-                "AURA cannot evaluate or authorize a payment "
-                "without an explicit amount."
+                "Payment amount is missing. AURA cannot evaluate "
+                "or authorize a payment without an explicit amount."
             ),
-
             "recommended_action": (
                 "Provide the payment amount before continuing."
             )
@@ -704,12 +641,16 @@ def run_vendor_agent(request: str):
 # COMPLIANCE AGENT
 # ============================================================
 
-def run_compliance_agent():
+def run_compliance_agent(request: str):
     """
-    Execute Compliance Agent.
+    AURA Compliance Agent wrapper.
 
-    Demo-safe defaults can later be replaced by
-    uploaded exporter documents or real integrations.
+    Demo-safe configuration:
+    - Shipping Bill: available
+    - Export Invoice: available
+    - GST LUT: available
+    - EDPMS realization: outstanding
+    - e-FIRC / realization proof: outstanding
     """
 
     return check_export_compliance(
@@ -722,374 +663,315 @@ def run_compliance_agent():
 
 
 # ============================================================
-# PAYMENT DECISION
+# RISK DECISION
 # ============================================================
 
 def decide_payment_action(
-    vendor_result=None,
-    compliance_result=None
+    risk_level: str
 ):
-    """
-    Decide whether payment is eligible.
 
-    IMPORTANT:
-    This function DOES NOT create a Razorpay order.
+    normalized = str(
+        risk_level
+    ).upper().strip()
 
-    It only determines whether payment may proceed
-    to the human approval gate.
-    """
+    decision_map = {
+        "HIGH": "BLOCK_PAYMENT",
+        "MEDIUM": "REVIEW_REQUIRED",
+        "LOW": "PAYMENT_READY"
+    }
 
-    risks = []
-
-    if vendor_result:
-
-        vendor_risk = vendor_result.get(
-            "43B_h_risk"
-        )
-
-        if vendor_risk:
-            risks.append(
-                vendor_risk
-            )
-
-    if compliance_result:
-
-        compliance_risk = compliance_result.get(
-            "risk"
-        )
-
-        if compliance_risk:
-            risks.append(
-                compliance_risk
-            )
-
-    overall_risk = calculate_risk(
-        risks
+    return decision_map.get(
+        normalized,
+        "BLOCK_PAYMENT"
     )
 
-    if overall_risk["risk_level"] == "HIGH":
 
-        return {
-            "decision": "BLOCK_PAYMENT",
-            "approval_required": True,
+# ============================================================
+# AGENTIC COMMERCE CONTEXT
+# ============================================================
 
-            "reason": (
-                "High risk detected. "
-                "Resolve outstanding issues before payment."
-            ),
-
-            "risk": overall_risk
-        }
-
-    if overall_risk["risk_level"] == "MEDIUM":
-
-        return {
-            "decision": "REVIEW_REQUIRED",
-            "approval_required": True,
-
-            "reason": (
-                "Medium risk detected. "
-                "Human review is required before payment."
-            ),
-
-            "risk": overall_risk
-        }
+def build_agentic_commerce_context(
+    amount,
+    currency="INR"
+):
 
     return {
-        "decision": "PAYMENT_READY",
-        "approval_required": True,
-
-        "reason": (
-            "No high-risk blocker detected. "
-            "Payment can proceed through the approval gate."
-        ),
-
-        "risk": overall_risk
+        "protocol_style": "AP2/ACP-inspired",
+        "payment_action": "HUMAN_APPROVAL_REQUIRED",
+        "execution_status": "AWAITING_HUMAN_APPROVAL",
+        "amount": amount,
+        "currency": currency,
+        "razorpay_order_created": False,
+        "message": (
+            "AURA has prepared the payment context. "
+            "Razorpay execution requires explicit human "
+            "authorization."
+        )
     }
 
 
 # ============================================================
-# AURA BRAIN
+# EXECUTABLE REQUEST VALIDATION
+# ============================================================
+
+def validate_executable_request(
+    request: str,
+    intent: str,
+    amount
+):
+
+    executable_intents = [
+        "commerce",
+        "vendor_commerce",
+        "compliance_commerce",
+        "full_export_workflow"
+    ]
+
+    if (
+        amount is None
+        and intent in executable_intents
+    ):
+
+        return {
+            "valid": False,
+            "response": {
+                "agent": "aura",
+                "name": "AURA",
+                "expansion": (
+                    "Autonomous Unified Razorpay Agent"
+                ),
+                "status": "invalid_request",
+                "request": request,
+                "intent": intent,
+                "required_agents": [],
+                "entities": {
+                    "amount": None,
+                    "vendor_name": extract_vendor_name(
+                        request
+                    ),
+                    "invoice_number": extract_invoice_number(
+                        request
+                    )
+                },
+                "message": (
+                    "Payment amount is missing. "
+                    "AURA cannot continue an executable "
+                    "payment workflow without an explicit amount."
+                ),
+                "action_required": (
+                    "Provide the payment amount before continuing."
+                ),
+                "razorpay_order_id": None,
+                "activity": [
+                    build_activity(
+                        "brain",
+                        "Received exporter request"
+                    ),
+                    build_activity(
+                        "brain",
+                        f"Intent classified as {intent}"
+                    ),
+                    build_activity(
+                        "brain",
+                        "Payment blocked because amount is missing",
+                        "blocked"
+                    )
+                ]
+            }
+        }
+
+    return {
+        "valid": True,
+        "response": None
+    }
+
+
+# ============================================================
+# MAIN AURA BRAIN
 # ============================================================
 
 def aura_brain(request: str):
-    """
-    Main AURA Brain entry point.
-
-    Flow:
-
-        Natural language request
-                ↓
-              Intent
-                ↓
-        Required agents
-                ↓
-        Vendor / Compliance
-                ↓
-              Risk
-                ↓
-        PAYMENT_READY / REVIEW_REQUIRED / BLOCK_PAYMENT
-                ↓
-        HUMAN APPROVAL GATE
-                ↓
-        /payment/approve
-                ↓
-        Razorpay order creation
-
-    The Brain NEVER creates the Razorpay order.
-    """
 
     if not request or not request.strip():
 
         return {
-            "agent": "brain",
+            "agent": "aura",
+            "name": "AURA",
+            "expansion": (
+                "Autonomous Unified Razorpay Agent"
+            ),
             "status": "invalid_request",
-
-            "message": (
-                "AURA requires an exporter request."
-            )
+            "request": request,
+            "intent": "unknown",
+            "message": "Request cannot be empty.",
+            "action_required": (
+                "Provide a payment or analysis request."
+            ),
+            "razorpay_order_id": None,
+            "activity": [
+                build_activity(
+                    "brain",
+                    "Empty request received",
+                    "blocked"
+                )
+            ]
         }
 
     request = request.strip()
 
-    intent = detect_intent(
+    # ========================================================
+    # 1. AI INTENT
+    # ========================================================
+
+    ai_result = run_ai_intent_layer(
         request
     )
 
-    required_agents = get_required_agents(
-        intent
+    # ========================================================
+    # 2. DETERMINISTIC INTENT
+    # ========================================================
+
+    deterministic_intent = detect_intent(
+        request
     )
+
+    # ========================================================
+    # 3. AI-ENRICHED ROUTING
+    # ========================================================
+
+    intent, required_agents = (
+        determine_agent_requirements(
+            request=request,
+            deterministic_intent=deterministic_intent,
+            ai_result=ai_result
+        )
+    )
+
+    # ========================================================
+    # 4. AMOUNT
+    # ========================================================
 
     amount = extract_amount(
         request
     )
 
     # ========================================================
-    # MISSING PAYMENT AMOUNT
+    # 5. SAFE VALIDATION
     # ========================================================
-    #
-    # Never allow an executable payment request to continue
-    # without an explicit amount.
-    #
 
-    if (
-        amount is None
-        and intent in [
-            "commerce",
-            "vendor_commerce",
-            "compliance_commerce",
-            "full_export_workflow"
-        ]
-    ):
+    validation = validate_executable_request(
+        request=request,
+        intent=intent,
+        amount=amount
+    )
 
-        return {
-            "agent": "aura",
-            "name": "AURA",
+    if not validation["valid"]:
 
-            "expansion": (
-                "Autonomous Unified Razorpay Agent"
-            ),
+        response = validation["response"]
 
-            "status": "invalid_request",
+        response["ai_intent"] = ai_result
 
-            "request": request,
+        return response
 
-            "intent": intent,
+    # ========================================================
+    # 6. ENTITIES
+    # ========================================================
 
-            "required_agents": required_agents,
-
-            "entities": {
-                "amount": None,
-                "vendor_name": extract_vendor_name(
-                    request
-                ),
-                "invoice_number": extract_invoice_number(
-                    request
-                )
-            },
-
-            "message": (
-                "Payment amount is missing. "
-                "AURA cannot continue an executable payment "
-                "workflow without an explicit amount."
-            ),
-
-            "action_required": (
-                "Provide the payment amount before continuing."
-            ),
-
-            "razorpay_order_id": None,
-
-            "activity": [
-                build_activity(
-                    "brain",
-                    "Received exporter request"
-                ),
-
-                build_activity(
-                    "brain",
-                    f"Intent classified as {intent}"
-                ),
-
-                build_activity(
-                    "brain",
-                    "Payment blocked because amount is missing",
-                    "blocked"
-                )
-            ]
-        }
-
-    vendor_name = extract_vendor_name(
+    deterministic_vendor = extract_vendor_name(
         request
     )
 
-    invoice_number = extract_invoice_number(
+    deterministic_invoice = extract_invoice_number(
         request
     )
 
-    activity = []
+    ai_data = {}
+
+    if isinstance(ai_result, dict):
+
+        ai_data = ai_result.get(
+            "data",
+            {}
+        )
+
+        if not isinstance(ai_data, dict):
+            ai_data = {}
+
+    vendor_name = (
+        deterministic_vendor
+        or ai_data.get("vendor_name")
+    )
+
+    invoice_number = (
+        deterministic_invoice
+        or ai_data.get("invoice_number")
+    )
 
     # ========================================================
-    # BRAIN START
+    # 7. ACTIVITY
     # ========================================================
 
-    activity.append(
+    activity = [
         build_activity(
             "brain",
             "Received exporter request"
-        )
-    )
+        ),
 
-    activity.append(
+        build_activity(
+            "ai_intent",
+            "Qwen 2.5:3B analyzed the request"
+        ),
+
         build_activity(
             "brain",
             f"Intent classified as {intent}"
         )
-    )
+    ]
 
-    activity.append(
-        build_activity(
-            "brain",
-            "Required agents selected"
-        )
-    )
-
-    results = {}
+    # ========================================================
+    # 8. AGENT RESULTS
+    # ========================================================
 
     vendor_result = None
     compliance_result = None
+    commerce_result = None
 
-    # ========================================================
-    # VENDOR AGENT
-    # ========================================================
+    # --------------------------------------------------------
+    # VENDOR
+    # --------------------------------------------------------
 
-    if intent in [
-        "vendor",
-        "vendor_commerce",
-        "vendor_compliance",
-        "full_export_workflow"
-    ]:
+    if "vendor" in required_agents:
+
+        vendor_result = run_vendor_agent(
+            request
+        )
 
         activity.append(
             build_activity(
                 "vendor",
-                (
-                    "Checking MSME payment deadline "
-                    "and Section 43B(h) risk"
-                ),
-                "running"
+                "Vendor payment risk evaluated"
             )
         )
 
-        try:
+    # --------------------------------------------------------
+    # COMPLIANCE
+    # --------------------------------------------------------
 
-            vendor_result = run_vendor_agent(
-                request
-            )
+    if "compliance" in required_agents:
 
-            results["vendor"] = vendor_result
-
-            activity.append(
-                build_activity(
-                    "vendor",
-                    "Vendor risk analysis completed"
-                )
-            )
-
-        except Exception as error:
-
-            activity.append(
-                build_activity(
-                    "vendor",
-                    f"Vendor agent failed: {error}",
-                    "failed"
-                )
-            )
-
-            results["vendor"] = {
-                "agent": "vendor",
-                "status": "ERROR",
-                "risk": "HIGH",
-                "message": str(error)
-            }
-
-            vendor_result = results["vendor"]
-
-    # ========================================================
-    # COMPLIANCE AGENT
-    # ========================================================
-
-    if intent in [
-        "compliance",
-        "compliance_commerce",
-        "vendor_compliance",
-        "full_export_workflow"
-    ]:
+        compliance_result = run_compliance_agent(
+            request
+        )
 
         activity.append(
             build_activity(
                 "compliance",
-                "Auditing export compliance documents",
-                "running"
+                "Export compliance requirements evaluated"
             )
         )
 
-        try:
-
-            compliance_result = run_compliance_agent()
-
-            results["compliance"] = (
-                compliance_result
-            )
-
-            activity.append(
-                build_activity(
-                    "compliance",
-                    "Export compliance audit completed"
-                )
-            )
-
-        except Exception as error:
-
-            activity.append(
-                build_activity(
-                    "compliance",
-                    f"Compliance agent failed: {error}",
-                    "failed"
-                )
-            )
-
-            results["compliance"] = {
-                "agent": "compliance",
-                "status": "ERROR",
-                "risk": "HIGH",
-                "message": str(error)
-            }
-
-            compliance_result = results["compliance"]
-
     # ========================================================
-    # RISK ENGINE
+    # 9. RISK SOURCES
     # ========================================================
 
     risks = []
@@ -1097,13 +979,11 @@ def aura_brain(request: str):
     if vendor_result:
 
         vendor_risk = vendor_result.get(
-            "43B_h_risk"
+            "risk"
         )
 
         if vendor_risk:
-            risks.append(
-                vendor_risk
-            )
+            risks.append(vendor_risk)
 
     if compliance_result:
 
@@ -1112,285 +992,178 @@ def aura_brain(request: str):
         )
 
         if compliance_risk:
-            risks.append(
-                compliance_risk
-            )
+            risks.append(compliance_risk)
 
-    aura_risk = calculate_risk(
+    # ========================================================
+    # 10. RISK ENGINE
+    # ========================================================
+
+    risk_result = calculate_risk(
         risks
     )
 
-    results["aura_risk"] = aura_risk
+    risk_level = risk_result.get(
+        "risk_level",
+        "LOW"
+    )
+
+    decision = decide_payment_action(
+        risk_level
+    )
 
     activity.append(
         build_activity(
-            "risk",
-            (
-                f"Overall risk calculated as "
-                f"{aura_risk['risk_level']}"
-            )
+            "risk_engine",
+            f"Risk assessed as {risk_level}"
         )
     )
 
     # ========================================================
-    # PAYMENT DECISION
+    # 11. FINAL DETERMINISTIC SAFETY DECISION
     # ========================================================
 
-    if (
-        vendor_result
-        or compliance_result
-    ):
+    if risk_level == "HIGH":
 
-        decision = decide_payment_action(
-            vendor_result=vendor_result,
-            compliance_result=compliance_result
-        )
+        decision = "BLOCK_PAYMENT"
 
-    elif intent == "commerce":
+    elif risk_level == "MEDIUM":
 
-        decision = {
-            "decision": "PAYMENT_READY",
-            "approval_required": True,
+        decision = "REVIEW_REQUIRED"
 
-            "reason": (
-                "Payment request is eligible to proceed "
-                "through the human approval gate."
-            ),
+    elif risk_level == "LOW":
 
-            "risk": aura_risk
-        }
+        decision = "PAYMENT_READY"
 
     else:
 
-        decision = {
-            "decision": "NO_ACTION",
-            "approval_required": False,
-
-            "reason": (
-                "No executable exporter action "
-                "was identified."
-            ),
-
-            "risk": aura_risk
-        }
-
-    results["decision"] = decision
+        decision = "BLOCK_PAYMENT"
 
     # ========================================================
-    # AGENTIC COMMERCE CONTEXT
+    # 12. ACTIVITY FOR FINAL DECISION
     # ========================================================
 
-    service = extract_service(
-        request
-    )
-
-    results["agentic_commerce"] = (
-        build_agentic_commerce_context(
-            request=request,
-            intent=intent,
-            required_agents=required_agents,
-            amount=amount,
-            vendor_name=vendor_name,
-            invoice_number=invoice_number,
-            service=service,
-            decision=decision,
-        )
-    )
-
-    activity.append(
-        build_activity(
-            "aura",
-            (
-                "Created structured payment intent and "
-                "authorization boundary"
-            )
-        )
-    )
-
-    # ========================================================
-    # HUMAN APPROVAL GATE
-    # ========================================================
-
-    if decision["decision"] == "BLOCK_PAYMENT":
-
-        activity.append(
-            build_activity(
-                "approval",
-                (
-                    "Payment blocked. "
-                    "Human approval is unavailable until "
-                    "HIGH risk is resolved."
-                ),
-                "blocked"
-            )
-        )
-
-    elif decision["decision"] == "REVIEW_REQUIRED":
-
-        activity.append(
-            build_activity(
-                "approval",
-                (
-                    "Human review required before "
-                    "payment can proceed."
-                ),
-                "waiting"
-            )
-        )
-
-    elif decision["decision"] == "PAYMENT_READY":
-
-        activity.append(
-            build_activity(
-                "approval",
-                (
-                    "Waiting for explicit human approval. "
-                    "Razorpay order will be created only "
-                    "after approval."
-                ),
-                "waiting"
-            )
-        )
-
-    # ========================================================
-    # COMMERCE AGENT
-    #
-    # IMPORTANT:
-    # NO create_order() HERE.
-    #
-    # The actual Razorpay order is created by:
-    #
-    #     POST /payment/approve
-    #
-    # after the human clicks:
-    #
-    #     APPROVE & OPEN RAZORPAY CHECKOUT
-    # ========================================================
-
-    if intent in [
-        "commerce",
-        "vendor_commerce",
-        "compliance_commerce",
-        "full_export_workflow"
-    ]:
-
-        activity.append(
-            build_activity(
-                "commerce",
-                (
-                    "Payment transaction prepared "
-                    "but Razorpay order creation is "
-                    "deferred until human approval."
-                ),
-                "waiting"
-            )
-        )
-
-        results["commerce"] = {
-            "status": "awaiting_approval",
-            "service": extract_service(request),
-            "amount": amount,
-            "currency": "INR",
-
-            "payment_action": (
-                "HUMAN_APPROVAL_REQUIRED"
-            ),
-
-            "payment_intent_status": (
-                "READY_FOR_AUTHORIZATION"
-                if decision["decision"] == "PAYMENT_READY"
-                else decision["decision"]
-            ),
-
-            "authorization_mode": (
-                "HUMAN_IN_THE_LOOP"
-            ),
-
-            "razorpay_order_id": None,
-            "razorpay_status": None,
-
-            "message": (
-                "No Razorpay order was created. "
-                "AURA is waiting for explicit human approval."
-            )
-        }
-
-    # ========================================================
-    # UNKNOWN REQUEST
-    # ========================================================
-
-    if intent == "unknown":
+    if decision == "BLOCK_PAYMENT":
 
         activity.append(
             build_activity(
                 "brain",
-                "Could not determine a suitable agent",
-                "failed"
+                "Payment blocked due to high risk",
+                "blocked"
             )
         )
 
-        return {
-            "agent": "brain",
-            "status": "unknown",
-            "intent": intent,
-            "required_agents": required_agents,
-            "request": request,
+    elif decision == "REVIEW_REQUIRED":
 
-            "message": (
-                "AURA could not determine the required "
-                "exporter workflow."
-            ),
-
-            "activity": activity
-        }
-
-    # ========================================================
-    # FINAL BRAIN ACTIVITY
-    # ========================================================
-
-    activity.append(
-        build_activity(
-            "brain",
-            "Multi-agent analysis completed"
-        )
-    )
-
-    activity.append(
-        build_activity(
-            "aura",
-            (
-                "Payment intent is bounded by explicit human "
-                "authorization before Razorpay execution"
-            ),
-
-            (
-                "waiting"
-                if decision["decision"] == "PAYMENT_READY"
-
-                else "blocked"
-                if decision["decision"] in [
-                    "BLOCK_PAYMENT",
-                    "REVIEW_REQUIRED",
-                ]
-
-                else "completed"
+        activity.append(
+            build_activity(
+                "brain",
+                "Human review required before payment",
+                "review"
             )
         )
+
+    elif decision == "PAYMENT_READY":
+
+        activity.append(
+            build_activity(
+                "brain",
+                "Payment is ready for human authorization"
+            )
+        )
+
+    # ========================================================
+    # 13. COMMERCE
+    # ========================================================
+
+    if "commerce" in required_agents:
+
+        commerce_result = (
+            build_agentic_commerce_context(
+                amount=amount,
+                currency="INR"
+            )
+        )
+
+        activity.append(
+            build_activity(
+                "commerce",
+                "Payment prepared and awaiting human approval"
+            )
+        )
+
+    # ========================================================
+    # 14. RECOMMENDATION
+    # ========================================================
+
+    recommendation = risk_result.get(
+        "recommendation"
     )
 
+    if vendor_result:
+
+        vendor_action = vendor_result.get(
+            "recommended_action"
+        )
+
+        if vendor_action:
+            recommendation = vendor_action
+
+    if compliance_result:
+
+        compliance_action = (
+            compliance_result.get(
+                "recommended_action"
+            )
+            or compliance_result.get(
+                "next_action"
+            )
+        )
+
+        if (
+            compliance_action
+            and risk_level in [
+                "MEDIUM",
+                "HIGH"
+            ]
+        ):
+
+            recommendation = compliance_action
+
     # ========================================================
-    # FINAL RESPONSE
+    # 15. PAYMENT ACTION
     # ========================================================
 
-    return {
+    payment_action = None
+    razorpay_order_id = None
+
+    if commerce_result:
+
+        payment_action = (
+            "HUMAN_APPROVAL_REQUIRED"
+        )
+
+        # CRITICAL:
+        #
+        # No Razorpay order is created here.
+        #
+        # /payment/approve is responsible for creating
+        # the Razorpay order after explicit human approval.
+
+    # ========================================================
+    # 16. FINAL RESPONSE
+    # ========================================================
+
+    response = {
+
         "agent": "aura",
+
         "name": "AURA",
 
         "expansion": (
             "Autonomous Unified Razorpay Agent"
         ),
 
-        "status": "analysis_complete",
+        "status": "completed",
 
         "request": request,
 
@@ -1400,11 +1173,88 @@ def aura_brain(request: str):
 
         "entities": {
             "amount": amount,
+            "currency": (
+                "INR"
+                if amount is not None
+                else None
+            ),
             "vendor_name": vendor_name,
             "invoice_number": invoice_number
         },
 
-        "results": results,
+        "ai_intent": ai_result,
 
-        "activity": activity
+        "decision": decision,
+
+        "risk": risk_result,
+
+        "recommendation": recommendation,
+
+        "vendor": vendor_result,
+
+        "compliance": compliance_result,
+
+        "commerce": commerce_result,
+
+        "payment_action": payment_action,
+
+        "razorpay_order_id": razorpay_order_id,
+
+        "activity": activity,
+
+        "audit": {
+            "analysis_completed": True,
+
+            "ai_intent_used_for_routing": True,
+
+            "razorpay_order_created": False,
+
+            "human_approval_required": (
+                commerce_result is not None
+            ),
+
+            "payment_execution_allowed": False
+        }
     }
+
+    # ========================================================
+    # 17. FINAL EXECUTION SAFETY
+    # ========================================================
+
+    # Initial brain analysis NEVER creates a Razorpay order.
+
+    response["razorpay_order_id"] = None
+
+    response["audit"][
+        "razorpay_order_created"
+    ] = False
+
+    response["audit"][
+        "payment_execution_allowed"
+    ] = False
+
+    return response
+
+
+# ============================================================
+# LOCAL TEST
+# ============================================================
+
+if __name__ == "__main__":
+
+    test_request = (
+        "Pay ABC Exports ₹50,000 for invoice INV-102. "
+        "The payment is due within 5 days."
+    )
+
+    result = aura_brain(
+        test_request
+    )
+
+    print(
+        json.dumps(
+            result,
+            indent=2,
+            ensure_ascii=False
+        )
+    )

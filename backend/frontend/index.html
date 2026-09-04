@@ -2240,142 +2240,169 @@ async function runBrain() {
    CURRENT BACKEND STRUCTURE
 ========================================================= */
 
+function getRoot(data) {
+    return data && typeof data === "object" ? data : {};
+}
+
+function getResults(data) {
+    const root = getRoot(data);
+    return root.results && typeof root.results === "object"
+        ? root.results
+        : {};
+}
+
 function getDecision(data) {
-
-    /*
-     * Current AURA response:
-     *
-     * data.results.decision.decision
-     */
+    const root = getRoot(data);
+    const results = getResults(data);
 
     if (
-        data.results &&
-        data.results.decision &&
-        typeof data.results.decision ===
-            "object"
+        results.decision &&
+        typeof results.decision === "object" &&
+        typeof results.decision.decision === "string"
     ) {
-
-        return (
-            data.results
-                .decision
-                .decision ||
-            ""
-        );
-
+        return results.decision.decision;
     }
 
-
-    if (
-        typeof data.decision ===
-        "string"
-    ) {
-
-        return data.decision;
-
+    if (typeof results.decision === "string") {
+        return results.decision;
     }
 
+    if (typeof root.decision === "string") {
+        return root.decision;
+    }
 
     return "";
 }
 
-
 function getRisk(data) {
+    const root = getRoot(data);
+    const results = getResults(data);
 
-    /*
-     * Current AURA response:
-     *
-     * data.results.aura_risk
-     */
+    const candidates = [
+        results.risk,
+        results.aura_risk,
+        results.risk_result,
+        root.risk,
+        root.aura_risk
+    ];
 
-    if (
-        data.results &&
-        data.results.aura_risk
-    ) {
-
-        return data.results.aura_risk;
-
+    for (const candidate of candidates) {
+        if (candidate && typeof candidate === "object") {
+            return candidate;
+        }
     }
-
-
-    if (
-        data.aura_risk
-    ) {
-
-        return data.aura_risk;
-
-    }
-
 
     return {};
 }
 
+function getVendor(data) {
+    const root = getRoot(data);
+    const results = getResults(data);
+
+    const candidates = [
+        results.vendor,
+        results.vendor_agent,
+        results.agent_results && results.agent_results.vendor,
+        results.agents && results.agents.vendor,
+        root.vendor,
+        root.vendor_agent
+    ];
+
+    for (const candidate of candidates) {
+        if (candidate && typeof candidate === "object") {
+            return candidate;
+        }
+    }
+
+    return null;
+}
+
+function getCompliance(data) {
+    const root = getRoot(data);
+    const results = getResults(data);
+
+    const candidates = [
+        results.compliance,
+        results.compliance_agent,
+        results.agent_results && results.agent_results.compliance,
+        results.agents && results.agents.compliance,
+        root.compliance,
+        root.compliance_agent
+    ];
+
+    for (const candidate of candidates) {
+        if (candidate && typeof candidate === "object") {
+            return candidate;
+        }
+    }
+
+    return null;
+}
+
+function getCommerce(data) {
+    const root = getRoot(data);
+    const results = getResults(data);
+
+    const candidates = [
+        results.commerce,
+        results.commerce_agent,
+        results.agent_results && results.agent_results.commerce,
+        results.agents && results.agents.commerce,
+        root.commerce,
+        root.commerce_agent
+    ];
+
+    for (const candidate of candidates) {
+        if (candidate && typeof candidate === "object") {
+            return candidate;
+        }
+    }
+
+    return null;
+}
 
 function getAmount(data) {
+    const root = getRoot(data);
+    const results = getResults(data);
+    const commerce = getCommerce(data);
+    const vendor = getVendor(data);
 
-    if (
-        data.results &&
-        data.results.commerce &&
-        data.results.commerce.amount
-    ) {
+    const candidates = [
+        commerce && commerce.amount,
+        vendor && vendor.invoice_amount,
+        root.entities && root.entities.amount,
+        results.entities && results.entities.amount,
+        root.amount,
+        results.amount
+    ];
 
-        return Number(
-            data.results
-                .commerce
-                .amount
-        );
-
+    for (const value of candidates) {
+        if (
+            value !== null &&
+            value !== undefined &&
+            value !== "" &&
+            Number(value) > 0
+        ) {
+            return Number(value);
+        }
     }
-
-
-    if (
-        data.results &&
-        data.results.vendor &&
-        data.results.vendor.invoice_amount
-    ) {
-
-        return Number(
-            data.results
-                .vendor
-                .invoice_amount
-        );
-
-    }
-
-
-    if (
-        data.entities &&
-        data.entities.amount
-    ) {
-
-        return Number(
-            data.entities.amount
-        );
-
-    }
-
 
     return 0;
 }
 
-
 function getService(data) {
+    const commerce = getCommerce(data);
 
-    if (
-        data.results &&
-        data.results.commerce &&
-        data.results.commerce.service
-    ) {
-
-        return data.results
-            .commerce
-            .service;
-
+    if (commerce && commerce.service) {
+        return commerce.service;
     }
 
+    if (data && data.service) {
+        return data.service;
+    }
 
     return DEFAULT_SERVICE;
 }
-
 
 /* =========================================================
    RISK BADGE
@@ -2432,7 +2459,12 @@ function renderActivityTimeline(data) {
 
             const action =
                 item && typeof item === "object"
-                    ? (item.action || item.status || "Activity completed")
+                    ? (
+                        item.message ||
+                        item.action ||
+                        item.status ||
+                        "Activity completed"
+                    )
                     : String(item);
 
             const status =
@@ -2477,6 +2509,83 @@ function renderActivityTimeline(data) {
 }
 
 
+function renderAiIntent(data) {
+    const ai = data && data.ai_intent;
+
+    if (!ai || typeof ai !== "object") {
+        return "";
+    }
+
+    const aiData =
+        ai.data && typeof ai.data === "object"
+            ? ai.data
+            : ai;
+
+    const provider =
+        aiData.ai_provider || "Ollama";
+
+    const model =
+        aiData.ai_model || "qwen2.5:3b";
+
+    const intent =
+        aiData.intent || "—";
+
+    const dueDays =
+        aiData.due_days !== null &&
+        aiData.due_days !== undefined
+            ? aiData.due_days
+            : "—";
+
+    const compliance =
+        aiData.requires_compliance
+            ? "Required"
+            : "Not required";
+
+    return `
+        <div class="result-card" style="margin-top:12px;">
+            <div class="result-card-title">
+                AI Intent Layer
+            </div>
+
+            <div class="result-row">
+                <span class="result-key">Provider</span>
+                <span class="result-value">
+                    ${escapeHtml(provider)}
+                </span>
+            </div>
+
+            <div class="result-row">
+                <span class="result-key">Model</span>
+                <span class="result-value">
+                    ${escapeHtml(model)}
+                </span>
+            </div>
+
+            <div class="result-row">
+                <span class="result-key">Detected Intent</span>
+                <span class="result-value">
+                    ${escapeHtml(intent)}
+                </span>
+            </div>
+
+            <div class="result-row">
+                <span class="result-key">Due Days</span>
+                <span class="result-value">
+                    ${escapeHtml(dueDays)}
+                </span>
+            </div>
+
+            <div class="result-row">
+                <span class="result-key">Compliance</span>
+                <span class="result-value">
+                    ${escapeHtml(compliance)}
+                </span>
+            </div>
+        </div>
+    `;
+}
+
+
 function renderBrainResult(data) {
 
 
@@ -2496,18 +2605,11 @@ function renderBrainResult(data) {
         getService(data);
 
 
-    const vendor =
-        data.results &&
-        data.results.vendor
-            ? data.results.vendor
-            : null;
+    const vendor = getVendor(data);
 
+    const compliance = getCompliance(data);
 
-    const compliance =
-        data.results &&
-        data.results.compliance
-            ? data.results.compliance
-            : null;
+    const commerce = getCommerce(data);
 
 
     const requiredAgents =
@@ -2518,13 +2620,17 @@ function renderBrainResult(data) {
             : [];
 
 
+    const results = getResults(data);
+
     const reason =
-        data.results &&
-        data.results.decision
-            ? data.results
-                .decision
-                .reason || ""
-            : "";
+        (
+            results.decision &&
+            typeof results.decision === "object"
+                ? results.decision.reason
+                : ""
+        ) ||
+        data.reason ||
+        "";
 
 
     /*
@@ -2534,7 +2640,9 @@ function renderBrainResult(data) {
 
     const paymentReady =
         decision ===
-        "PAYMENT_READY";
+        "PAYMENT_READY" ||
+        decision ===
+        "REVIEW_REQUIRED";
 
 
     currentApproval = {
@@ -2694,9 +2802,9 @@ function renderBrainResult(data) {
                 <div class="agent-status">
 
                     ${
-                        paymentReady
+                        commerce
                             ? "waiting for approval"
-                            : "waiting"
+                            : "not required"
                     }
 
                 </div>
@@ -2704,6 +2812,9 @@ function renderBrainResult(data) {
             </div>
 
         </div>
+
+
+        ${renderAiIntent(data)}
 
 
         ${renderActivityTimeline(data)}
@@ -2834,15 +2945,18 @@ function renderBrainResult(data) {
                     <span class="result-value">
 
                         ${
-                            data.results &&
-                            data.results.commerce &&
-                            data.results.commerce.razorpay_order_id
+                            commerce &&
+                            commerce.razorpay_order_id
                                 ? escapeHtml(
-                                    data.results
-                                        .commerce
-                                        .razorpay_order_id
+                                    commerce.razorpay_order_id
                                 )
-                                : "Not created"
+                                : (
+                                    data.razorpay_order_id
+                                        ? escapeHtml(
+                                            data.razorpay_order_id
+                                        )
+                                        : "Not created"
+                                )
                         }
 
                     </span>
@@ -2874,7 +2988,8 @@ function renderBrainResult(data) {
             paymentReady
                 ? renderApproval(
                     amount,
-                    service
+                    service,
+                    decision
                 )
                 : ""
         }
@@ -3143,8 +3258,26 @@ function renderCompliance(compliance) {
 
 function renderApproval(
     amount,
-    service
+    service,
+    decision = "PAYMENT_READY"
 ) {
+    const isReviewRequired =
+        decision === "REVIEW_REQUIRED";
+
+    const approvalTitle =
+        isReviewRequired
+            ? "Human Review & Approval Required"
+            : "Human Approval Required";
+
+    const approvalDescription =
+        isReviewRequired
+            ? "AURA flagged this payment for review. Review the risk findings and approve to continue to Razorpay Checkout."
+            : "AURA completed the risk check. Approve this payment to continue to Razorpay Checkout.";
+
+    const approvalButtonLabel =
+        isReviewRequired
+            ? "REVIEW & APPROVE PAYMENT"
+            : "APPROVE PAYMENT";
 
     return `
 
@@ -3155,13 +3288,12 @@ function renderApproval(
                 <div>
 
                     <div class="approval-title">
-                        Human Approval Required
+                        ${escapeHtml(approvalTitle)}
                     </div>
 
                     <div class="approval-description">
 
-                        AURA completed the risk check.
-                        Approve this payment to continue to Razorpay Checkout.
+                        ${escapeHtml(approvalDescription)}
 
                     </div>
 
@@ -3190,7 +3322,7 @@ function renderApproval(
                         : ""
                 }
             >
-                APPROVE PAYMENT
+                ${escapeHtml(approvalButtonLabel)}
             </button>
 
         </div>
