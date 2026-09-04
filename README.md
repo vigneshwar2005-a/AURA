@@ -1,4 +1,4 @@
-AURA — Autonomous Unified Razorpay Agent
+# **AURA — Autonomous Unified Razorpay Agent**
 
 AI-powered autonomous payment orchestration for exporters.
 
