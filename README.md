@@ -1,15 +1,15 @@
-# AURA — Autonomous Unified Razorpay Agent
+#** AURA — Autonomous Unified Razorpay Agent
 
-> **AI-powered autonomous payment orchestration for exporters.**
+AI-powered autonomous payment orchestration for exporters.
 
-AURA is a multi-agent payment control layer that understands payment requests, analyzes vendor and export-compliance context, evaluates risk, and allows Razorpay payment execution only after explicit human authorization.
+AURA is a multi-agent payment control layer that understands natural-language payment requests, analyzes vendor and export-compliance context, evaluates risk, and allows Razorpay payment execution only after explicit human authorization.
 
----
+Core Flow
 
-## Core Flow
-
-```text
-Business User
+User Request
+     ↓
+AI Intent Layer
+(Qwen 2.5:3B via Ollama)
      ↓
 AURA Brain
      ↓
@@ -23,293 +23,511 @@ Human Approval
      ↓
 Razorpay Checkout
      ↓
-Captured Payment
+Payment Captured
      ↓
 Audit Trail & Payment History
-```
+
+---
+
+## Why AURA?
+
+Payment execution is only one part of an exporter payment workflow.
+
+Before money is moved, a business may need to understand:
+
+-  Who is being paid? 
+-  Is the vendor payment overdue? 
+-  Are there MSME-related payment risks? 
+-  Are export compliance requirements satisfied? 
+-  Are important export documents available? 
+-  Should the payment proceed, require review, or be blocked? 
+-  Can an AI system be trusted to directly execute a financial transaction? 
+
+AURA addresses this gap by acting as an intelligent control layer between the user's payment intent and payment execution.
 
 ---
 
 ## Key Features
 
-* **Natural-language payment understanding**
-* **Multi-agent orchestration**
-* **Vendor payment-timing analysis**
-* **MSME / Section 43B(h) risk detection**
-* **Export compliance checks**
-* **Risk scoring and payment decisions**
-* **Human approval before payment execution**
-* **Razorpay Test Mode integration**
-* **Razorpay payment reconciliation**
-* **Activity and audit trail**
-* **Payment history**
-* **Missing and invalid amount protection**
-* **High-risk payment blocking**
+-  Natural-language payment requests 
+-  AI-powered intent extraction 
+-  Local Qwen 2.5:3B inference through Ollama 
+-  Multi-agent orchestration 
+-  Vendor payment-risk analysis 
+-  MSME / Section 43B(h)-related risk detection 
+-  Export compliance checks 
+-  Risk scoring 
+-  Deterministic payment decisions 
+-  Human approval before Razorpay execution 
+-  Razorpay Test Mode integration 
+-  Payment capture 
+-  Payment reconciliation 
+-  Audit trail 
+-  Payment history 
+-  Missing amount protection 
+-  High-risk payment blocking 
+-  Explainable payment decisions 
 
 ---
 
-# Agent Architecture
+#** AI Intent Layer
 
-## AURA Brain
+AURA includes a dedicated AI Intent Layer powered by:
 
-The central orchestration layer that:
+- **Qwen 2.5:3B** 
+- **Ollama** 
+-  Local inference during the prototype 
 
-* Understands payment intent
-* Extracts payment entities
-* Selects the required agents
-* Combines agent results
-* Produces the final payment decision
+The AI layer allows users to describe payment requests naturally instead of filling out multiple structured fields.
+
+### Example
+
+Pay ABC Exports ₹50,000 for invoice INV-102.
+The payment is due within 5 days.
+
+Qwen can extract structured information such as:
+
+{
+  "intent": "payment",
+  "amount": 50000,
+  "currency": "INR",
+  "vendor_name": "ABC Exports",
+  "invoice_number": "INV-102",
+  "due_days": 5,
+  "is_overdue": false,
+  "requires_compliance": false
+}
+
+The structured information is then used by the AURA Brain for agent routing and workflow enrichment.
+
+### AI Safety Boundary
+
+Qwen does **not** approve or execute payments.
+
+The architecture intentionally separates AI understanding from financial authorization:
+
+AI
+ ↓
+Understands the request
+
+Agents
+ ↓
+Analyze business context
+
+Risk Engine
+ ↓
+Makes deterministic risk decision
+
+Human
+ ↓
+Explicitly authorizes payment
+
+Razorpay
+ ↓
+Executes payment
+
+> **AI understands. Agents analyze. Risk Engine decides. Human authorizes. Razorpay executes.**
 
 ---
+
+#** AURA Brain
+
+The AURA Brain is the main orchestration layer.
+
+It:
+
+1.  Receives the natural-language request 
+2.  Runs the AI Intent Layer 
+3.  Performs deterministic intent detection 
+4.  Extracts payment entities 
+5.  Determines which agents are required 
+6.  Executes the relevant agents 
+7.  Collects risk signals 
+8.  Passes those signals to the Risk Engine 
+9.  Produces the final payment decision 
+10.  Prepares the payment context for human approval 
+
+The Brain never creates a Razorpay order during initial analysis.
+
+---
+
+#** Agents
 
 ## Vendor Agent
 
-Evaluates vendor payment risk, including:
+The Vendor Agent evaluates vendor payment risk.
 
-* MSME payment timelines
-* User-stated payment deadlines
-* Overdue payments
-* Section 43B(h)-related risk
+It checks:
+
+-  MSME vendor status 
+-  Payment deadlines 
+-  Overdue payments 
+-  Payment timing 
+-  Section 43B(h)-related risk 
+
+### Example
+
+Payment due within 5 days
+        ↓
+MEDIUM RISK
+        ↓
+REVIEW_REQUIRED
+
+An overdue payment can result in:
+
+HIGH RISK
+    ↓
+BLOCK_PAYMENT
 
 ---
 
 ## Compliance Agent
 
-Checks export-related compliance context:
+The Compliance Agent evaluates exporter-related requirements such as:
 
-* GST LUT
-* Shipping Bill
-* Export Invoice
-* EDPMS realization
-* e-FIRC / realization proof
+-  GST LUT 
+-  Shipping Bill 
+-  Export Invoice 
+-  EDPMS realization 
+-  e-FIRC / realization proof 
+
+For example, if two configured compliance items are outstanding:
+
+2 Missing Items
+      ↓
+MEDIUM
+      ↓
+REVIEW_REQUIRED
+
+If three or more configured compliance items are missing:
+
+3+ Missing Items
+      ↓
+HIGH
+      ↓
+BLOCK_PAYMENT
 
 ---
 
 ## Commerce Agent
 
-Handles Razorpay payment preparation and execution.
+The Commerce Agent prepares the payment context for Razorpay.
 
-AURA follows:
+During initial AURA analysis:
 
-**Analysis → Risk Decision → Human Authorization → Razorpay Execution**
+Razorpay Order = NOT CREATED
 
-> **Important:** AURA does not create a Razorpay order during initial analysis. Razorpay execution begins only after explicit human approval.
+The Razorpay order is created only after explicit human approval.
 
----
-
-## Risk Engine
-
-| Risk Level | Score | Decision          |
-| ---------- | ----: | ----------------- |
-| LOW        |    25 | `PAYMENT_READY`   |
-| MEDIUM     |    60 | `REVIEW_REQUIRED` |
-| HIGH       |    90 | `BLOCK_PAYMENT`   |
+This ensures that analysis and execution remain separate.
 
 ---
 
-# Demo Scenarios
+#** Risk Engine
 
-## LOW Risk
+The Risk Engine combines risk signals from the specialized agents and produces a deterministic final risk level.
 
-**Request:**
+| RiskScoreDecision |    |                  |
+| ----------------- | -- | ---------------- |
+| LOW               | 25 | PAYMENT\_READY   |
+| MEDIUM            | 60 | REVIEW\_REQUIRED |
+| HIGH              | 90 | BLOCK\_PAYMENT   |
 
-```text
-Pay ABC Exports ₹50,000 for invoice INV-102
-```
+### Decision Flow
 
-**Expected:**
+LOW
+ ↓
+PAYMENT_READY
 
-```text
-LOW → 25 → PAYMENT_READY
-```
+MEDIUM
+ ↓
+REVIEW_REQUIRED
 
----
+HIGH
+ ↓
+BLOCK_PAYMENT
 
-## MEDIUM Risk
-
-**Request:**
-
-```text
-Pay ABC Exports ₹50,000 for invoice INV-102.
-The payment is due within 5 days.
-```
-
-**Expected:**
-
-```text
-MEDIUM → 60 → REVIEW_REQUIRED
-```
+The final financial decision does not depend on an AI-generated approval.
 
 ---
 
-## HIGH Risk
+#** Human Approval
 
-**Request:**
+AURA introduces an explicit human authorization boundary.
 
-```text
-Pay ABC Exports ₹50,000 for invoice INV-102.
-The payment is overdue.
-```
+The initial analysis can produce:
 
-**Expected:**
+PAYMENT_READY
 
-```text
-HIGH → 90 → BLOCK_PAYMENT
-```
+or:
 
----
+REVIEW_REQUIRED
 
-## Export Compliance
+But the Razorpay payment is not executed automatically.
 
-**Request:**
+The user must explicitly approve the payment.
 
-```text
-Pay ABC Exports ₹50,000 for invoice INV-102 after checking
-the GST LUT, shipping bill, export invoice, EDPMS realization
-and e-FIRC.
-```
-
-AURA runs the relevant agents and identifies outstanding compliance items before authorization.
-
----
-
-## Missing Amount Protection
-
-**Request:**
-
-```text
-Pay ABC Exports for invoice INV-102
-```
-
-AURA does **not** invent or assume a payment amount.
-
-The payment workflow is blocked until an explicit amount is provided.
-
----
-
-## No Order Before Approval
-
-**Request:**
-
-```text
-Pay ABC Exports ₹10,000 for invoice INV-103
-```
-
-Before clicking **APPROVE PAYMENT**:
-
-```text
-Razorpay Order: Not Created
-```
-
-Only after human approval is the Razorpay order created.
-
----
-
-# Razorpay Payment Flow
-
-```text
 AURA Analysis
       ↓
-PAYMENT_READY
+Decision
       ↓
-APPROVE PAYMENT
+Human Approval
       ↓
 Razorpay Order
       ↓
 Razorpay Checkout
       ↓
 Payment Captured
-      ↓
+
+For:
+
+BLOCK_PAYMENT
+
+the payment cannot proceed through the normal approval flow.
+
+---
+
+#** Razorpay Payment Flow
+
+AURA Analysis
+     ↓
+PAYMENT_READY
+     ↓
+APPROVE PAYMENT
+     ↓
+Razorpay Order
+     ↓
+Razorpay Checkout
+     ↓
+Payment Captured
+     ↓
 Payment History
-```
 
-> **Human authorization is required before Razorpay execution.**
-
----
-
-# Audit & Payment Tracking
-
-AURA provides visibility into the complete payment lifecycle:
-
-* Agent execution status
-* Risk assessment
-* Payment decision
-* Approval state
-* Razorpay order status
-* Captured payment status
-* Payment history
-* Activity and audit trail
+AURA has been integrated with Razorpay Test Mode for the prototype.
 
 ---
 
-# Tech Stack
+#** Demo Scenarios
 
-| Technology                  | Purpose                   |
-| --------------------------- | ------------------------- |
-| **Python**                  | Core application          |
-| **FastAPI**                 | Backend API               |
-| **Pydantic**                | Data validation           |
-| **Razorpay API**            | Payment execution         |
-| **python-dotenv**           | Environment configuration |
-| **HTML / CSS / JavaScript** | Frontend                  |
-| **Uvicorn**                 | Application server        |
+## 1. LOW Risk
+
+### Request
+
+Pay ABC Exports ₹10,000 for invoice INV-103
+
+### Expected
+
+Risk: LOW
+Score: 25
+Decision: PAYMENT_READY
+
+No Razorpay order is created before approval.
 
 ---
 
-# Project Structure
+## 2. MEDIUM Risk
 
-```text
+### Request
+
+Pay ABC Exports ₹50,000 for invoice INV-102.
+The payment is due within 5 days.
+
+### Expected
+
+Risk: MEDIUM
+Score: 60
+Decision: REVIEW_REQUIRED
+
+AURA requires human review before continuing.
+
+---
+
+## 3. HIGH Risk
+
+### Request
+
+Pay ABC Exports ₹50,000 for invoice INV-102.
+The payment is overdue.
+
+### Expected
+
+Risk: HIGH
+Score: 90
+Decision: BLOCK_PAYMENT
+
+No normal payment approval path is provided.
+
+---
+
+## 4. Export Compliance
+
+### Request
+
+Pay ABC Exports ₹50,000 for invoice INV-102
+after checking the GST LUT, shipping bill,
+export invoice, EDPMS realization and e-FIRC.
+
+### Expected
+
+AURA routes the request through the Compliance Agent.
+
+The configured demo scenario identifies:
+
+Missing:
+- EDPMS realization
+- e-FIRC / realization proof
+
+Result:
+
+Risk: MEDIUM
+Score: 60
+Decision: REVIEW_REQUIRED
+
+---
+
+## 5. Missing Amount
+
+### Request
+
+Pay ABC Exports for invoice INV-102
+
+AURA does not invent an amount.
+
+The workflow is blocked until an explicit payment amount is provided.
+
+Payment amount missing
+        ↓
+INVALID_REQUEST
+        ↓
+NO RAZORPAY EXECUTION
+
+---
+
+## 6. No Order Before Approval
+
+### Request
+
+Pay ABC Exports ₹10,000 for invoice INV-103
+
+Before clicking `APPROVE PAYMENT`:
+
+Razorpay Order: Not Created
+
+Only after explicit human approval:
+
+Razorpay Order
+     ↓
+Checkout
+     ↓
+Payment
+
+---
+
+#** Audit Trail
+
+AURA records important workflow events including:
+
+-  Request received 
+-  AI intent analysis 
+-  Intent classification 
+-  Agent execution 
+-  Compliance evaluation 
+-  Risk evaluation 
+-  Human review requirement 
+-  Payment blocking 
+-  Payment readiness 
+-  Payment execution status 
+
+This provides visibility into **why a payment was allowed, reviewed, or blocked**.
+
+---
+
+#** Technology Stack
+
+### Backend
+
+-  Python 
+-  FastAPI 
+-  Pydantic 
+-  Uvicorn 
+
+### AI
+
+-  Qwen 2.5:3B 
+-  Ollama 
+-  Local AI Intent Layer 
+
+### Payments
+
+-  Razorpay API 
+-  Razorpay Test Mode 
+-  Razorpay Checkout 
+
+### Frontend
+
+-  HTML 
+-  CSS 
+-  JavaScript 
+
+### Configuration
+
+-  python-dotenv 
+
+---
+
+#** Project Structure
+
 AURA/
+│
 ├── backend/
+│   │
 │   ├── agents/
 │   │   ├── brain.py
-│   │   ├── commerce.py
 │   │   ├── compliance.py
+│   │   ├── commerce.py
 │   │   └── vendor.py
+│   │
 │   ├── models/
+│   │   ├── __init__.py
+│   │   └── schemas.py
+│   │
 │   ├── services/
+│   │   ├── ai_intent.py
+│   │   ├── exporter_engine.py
+│   │   └── risk_engine.py
+│   │
 │   ├── data/
+│   │
 │   ├── documents/
+│   │
 │   ├── frontend/
+│   │
 │   ├── tests/
+│   │
 │   ├── main.py
 │   ├── requirements.txt
 │   └── .env.example
+│
 ├── .gitignore
 └── README.md
-```
 
 ---
 
-# Setup
+#** Setup
 
 ## 1. Clone the Repository
 
-```bash
 git clone https://github.com/vigneshwar2005-a/AURA.git
 cd AURA
-```
-
----
 
 ## 2. Create Virtual Environment
 
-```bash
 cd backend
 python -m venv venv
-```
-
----
 
 ## 3. Install Dependencies
 
-### Windows
-
-```powershell
 .\venv\Scripts\python.exe -m pip install -r requirements.txt
-```
-
----
 
 ## 4. Configure Razorpay
 
@@ -317,43 +535,33 @@ Copy `.env.example` to `.env`.
 
 ### Windows PowerShell
 
-```powershell
 Copy-Item .env.example .env
-```
 
 Add your Razorpay Test Mode credentials:
 
-```env
 RAZORPAY_KEY_ID=your_razorpay_test_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_test_key_secret
 RAZORPAY_WEBHOOK_SECRET=your_razorpay_webhook_secret
-```
 
-> **Never commit the real `.env` file.**
+**Never commit the real** **`.env`** **file.**
 
 ---
 
-# Run AURA
+#** Run AURA
 
 ## Backend
 
 From:
 
-```text
 C:\Aura\backend
-```
 
 Run:
 
-```powershell
 .\venv\Scripts\python.exe -m uvicorn main:app --reload
-```
 
 Backend:
 
-```text
 http://127.0.0.1:8000
-```
 
 ---
 
@@ -363,60 +571,72 @@ Open another terminal.
 
 From:
 
-```text
 C:\Aura
-```
 
 Run:
 
-```powershell
 .\backend\venv\Scripts\python.exe -m http.server 5500 --directory backend\frontend
-```
 
 Open:
 
-```text
 http://127.0.0.1:5500/index.html
-```
 
 ---
 
-# Security
+#** Run the AI Intent Layer
 
-AURA is designed with payment safety as a core principle.
+Make sure Ollama is running with the Qwen model:
 
-* Real credentials are stored only in `.env`
-* `.env` is excluded from Git
-* `.env.example` contains placeholders only
-* Razorpay orders are **not created during initial analysis**
-* High-risk payments are blocked
-* Missing payment amounts are rejected
-* Human approval is required before Razorpay execution
+qwen2.5:3b
+
+The AURA AI Intent Layer communicates with the local Ollama endpoint:
+
+http://127.0.0.1:11434/api/generate
+
+The AI layer is used for intent understanding and structured extraction only.
+
+It does not execute payments.
 
 ---
 
-# Project Status
+#** Security & Safety
+
+AURA is designed with multiple financial safety boundaries.
+
+-  Real Razorpay credentials are stored only in `.env` 
+- `.env` is excluded from Git 
+- `.env.example` contains placeholders only 
+-  AI does not directly approve payments 
+-  AI does not directly execute payments 
+-  Razorpay orders are not created during initial analysis 
+-  Human approval is required before Razorpay execution 
+-  High-risk payments are blocked 
+-  Missing payment amounts are rejected 
+-  Risk decisions are deterministic 
+-  Payment activity is recorded in an audit trail 
+
+---
+
+#** Project Status
 
 **Buildathon-ready prototype using Razorpay Test Mode.**
 
-## Current Capabilities
+The prototype demonstrates:
 
-* Multi-agent payment orchestration
-* Vendor risk analysis
-* Export compliance analysis
-* Risk-based payment decisions
-* Human-in-the-loop authorization
-* Razorpay Checkout integration
-* Payment capture
-* Payment reconciliation
-* Audit trail
-* Payment history
-* Safety and edge-case handling
-
----
-
-# Built for Razorpay Buildathon
-
-## AURA — Autonomous Unified Razorpay Agent
-
-**AI reasons. Humans authorize. Razorpay executes.**
+Natural Language Request
+        ↓
+Qwen AI Intent Layer
+        ↓
+AURA Brain
+        ↓
+Multi-Agent Analysis
+        ↓
+Deterministic Risk Engine
+        ↓
+Human Authorization
+        ↓
+Razorpay Checkout
+        ↓
+Captured Payment
+        ↓
+Audit & Payment History
