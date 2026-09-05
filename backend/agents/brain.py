@@ -54,7 +54,7 @@ def build_activity(
 
 def extract_amount(request: str):
     """
-    Extract payment amount.
+    Extract payment amount from natural-language requests.
 
     Supports:
         ₹50,000
@@ -64,6 +64,13 @@ def extract_amount(request: str):
         50k
         50 thousand
         1 lakh
+        ten thousand
+        twenty five thousand
+        fifty thousand
+        one hundred thousand
+        one lakh
+        two lakh
+        one hundred and twenty five thousand
 
     IMPORTANT:
         Never invents a default amount.
@@ -73,6 +80,10 @@ def extract_amount(request: str):
         return None
 
     text = request.lower().replace(",", "").strip()
+
+    # ========================================================
+    # 1. Numeric formats
+    # ========================================================
 
     patterns = [
         r"₹\s*(\d+(?:\.\d+)?)",
@@ -110,6 +121,119 @@ def extract_amount(request: str):
 
         except (TypeError, ValueError):
             return None
+
+    # ========================================================
+    # 2. English number-word conversion
+    # ========================================================
+
+    number_words = {
+        "zero": 0,
+        "one": 1,
+        "two": 2,
+        "three": 3,
+        "four": 4,
+        "five": 5,
+        "six": 6,
+        "seven": 7,
+        "eight": 8,
+        "nine": 9,
+        "ten": 10,
+        "eleven": 11,
+        "twelve": 12,
+        "thirteen": 13,
+        "fourteen": 14,
+        "fifteen": 15,
+        "sixteen": 16,
+        "seventeen": 17,
+        "eighteen": 18,
+        "nineteen": 19,
+        "twenty": 20,
+        "thirty": 30,
+        "forty": 40,
+        "fifty": 50,
+        "sixty": 60,
+        "seventy": 70,
+        "eighty": 80,
+        "ninety": 90,
+    }
+
+    def words_to_number(words):
+        total = 0
+        current = 0
+
+        for word in words:
+
+            if word in number_words:
+                current += number_words[word]
+
+            elif word == "hundred":
+                if current == 0:
+                    current = 1
+
+                current *= 100
+
+            elif word == "thousand":
+                if current == 0:
+                    current = 1
+
+                total += current * 1000
+                current = 0
+
+            elif word == "lakh":
+                if current == 0:
+                    current = 1
+
+                total += current * 100000
+                current = 0
+
+            elif word == "and":
+                continue
+
+            else:
+                return None
+
+        total += current
+
+        if total <= 0:
+            return None
+
+        return total
+
+    # ========================================================
+    # 3. Find English number phrases
+    # ========================================================
+
+    word = (
+        r"(?:zero|one|two|three|four|five|six|seven|eight|nine|"
+        r"ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|"
+        r"seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|"
+        r"sixty|seventy|eighty|ninety|hundred|thousand|lakh|and)"
+    )
+
+    words_pattern = rf"\b({word}(?:\s+{word}){{0,10}})\b"
+
+    for match in re.finditer(
+        words_pattern,
+        text,
+        re.IGNORECASE
+    ):
+        phrase = match.group(1).strip()
+        phrase_words = phrase.split()
+
+        # A standalone number word such as "ten" should not
+        # accidentally become a payment amount. Require an
+        # amount multiplier for natural-language amounts.
+        if not re.search(
+            r"\b(thousand|lakh|hundred)\b",
+            phrase,
+            re.IGNORECASE
+        ):
+            continue
+
+        value = words_to_number(phrase_words)
+
+        if value is not None and value > 0:
+            return float(value)
 
     return None
 
@@ -642,24 +766,43 @@ def run_vendor_agent(request: str):
 # ============================================================
 
 def run_compliance_agent(request: str):
-    """
-    AURA Compliance Agent wrapper.
 
-    Demo-safe configuration:
-    - Shipping Bill: available
-    - Export Invoice: available
-    - GST LUT: available
-    - EDPMS realization: outstanding
-    - e-FIRC / realization proof: outstanding
-    """
+    try:
 
-    return check_export_compliance(
-        shipping_bill=True,
-        invoice=True,
-        gst_lut=True,
-        edpms_realized=False,
-        e_firc=False
-    )
+        result = check_export_compliance()
+
+        if isinstance(result, dict):
+            return result
+
+    except TypeError:
+
+        try:
+
+            result = check_export_compliance(
+                request
+            )
+
+            if isinstance(result, dict):
+                return result
+
+        except Exception:
+            pass
+
+    except Exception:
+        pass
+
+    return {
+        "agent": "compliance",
+        "status": "ERROR",
+        "risk": "HIGH",
+        "decision": "BLOCK_PAYMENT",
+        "message": (
+            "Unable to complete export compliance evaluation."
+        ),
+        "recommended_action": (
+            "Review the required export documents before payment."
+        )
+    }
 
 
 # ============================================================

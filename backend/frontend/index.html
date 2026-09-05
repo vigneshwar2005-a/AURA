@@ -2275,21 +2275,16 @@ function getDecision(data) {
 }
 
 function getRisk(data) {
-    const root = getRoot(data);
-    const results = getResults(data);
-
-    const candidates = [
-        results.risk,
-        results.aura_risk,
-        results.risk_result,
-        root.risk,
-        root.aura_risk
-    ];
-
-    for (const candidate of candidates) {
-        if (candidate && typeof candidate === "object") {
-            return candidate;
-        }
+    /*
+     * Current AURA /brain response returns the risk object
+     * directly at the root level as data.risk.
+     */
+    if (
+        data &&
+        data.risk &&
+        typeof data.risk === "object"
+    ) {
+        return data.risk;
     }
 
     return {};

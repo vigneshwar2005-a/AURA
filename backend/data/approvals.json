@@ -70,5 +70,53 @@
         "razorpay_order_id": "order_TXdzLQ0OBLUZ8l",
         "approved_at": "2026-09-03T17:19:20.562092+00:00",
         "payment_action": "HUMAN_APPROVED_CHECKOUT_REQUIRED"
+    },
+    {
+        "approval_id": "4a8e5adc-33f7-407e-a9db-b1613e60482e",
+        "request_id": "119a5bb4-b120-410e-bf3e-51499e612213",
+        "service": "AURA Exporter Service",
+        "amount": 50000.0,
+        "currency": "INR",
+        "decision": "APPROVED",
+        "approval_status": "APPROVED",
+        "razorpay_order_id": "order_TXwJmt4mipoQKP",
+        "approved_at": "2026-09-04T11:15:10.832675+00:00",
+        "payment_action": "HUMAN_APPROVED_CHECKOUT_REQUIRED"
+    },
+    {
+        "approval_id": "5083961a-2c78-4533-a7ef-f767ce33140a",
+        "request_id": "ce1636e9-01cf-45d3-8b4e-b4c3e9044d70",
+        "service": "AURA Exporter Service",
+        "amount": 10000.0,
+        "currency": "INR",
+        "decision": "APPROVED",
+        "approval_status": "APPROVED",
+        "razorpay_order_id": "order_TXwiu1iVmth4x7",
+        "approved_at": "2026-09-04T11:38:57.356995+00:00",
+        "payment_action": "HUMAN_APPROVED_CHECKOUT_REQUIRED"
+    },
+    {
+        "approval_id": "81b6c1e2-84b1-4836-8a9d-bf51c4f27bca",
+        "request_id": "968afd27-a080-483f-b9a0-f0b53dc41d13",
+        "service": "AURA Exporter Service",
+        "amount": 10000.0,
+        "currency": "INR",
+        "decision": "APPROVED",
+        "approval_status": "APPROVED",
+        "razorpay_order_id": "order_TXyfkAbTMj3gyL",
+        "approved_at": "2026-09-04T13:33:22.078698+00:00",
+        "payment_action": "HUMAN_APPROVED_CHECKOUT_REQUIRED"
+    },
+    {
+        "approval_id": "bc6ae000-34c5-4540-befa-fecc6fff8bd6",
+        "request_id": "70845757-cc47-4c8b-887c-aacec6131779",
+        "service": "AURA Exporter Service",
+        "amount": 10000.0,
+        "currency": "INR",
+        "decision": "APPROVED",
+        "approval_status": "APPROVED",
+        "razorpay_order_id": "order_TYIMXQV9uv8JXW",
+        "approved_at": "2026-09-05T08:49:03.950545+00:00",
+        "payment_action": "HUMAN_APPROVED_CHECKOUT_REQUIRED"
     }
 ]
